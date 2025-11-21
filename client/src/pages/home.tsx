@@ -22,8 +22,7 @@ export default function Home() {
       isDemo: boolean;
       apiKey?: string;
     }) => {
-      const response = await apiRequest("POST", "/api/analyze-meeting", data);
-      return response as MeetingAnalysis;
+      return await apiRequest("POST", "/api/analyze-meeting", data) as unknown as MeetingAnalysis;
     },
     onSuccess: (data) => {
       setAnalysis(data);
