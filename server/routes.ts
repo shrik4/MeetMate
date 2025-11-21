@@ -8,9 +8,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/analyze-meeting", async (req, res) => {
     try {
       const requestSchema = z.object({
-        meetingLink: z.string().url(),
-        meetingType: z.string(),
-        language: z.string(),
+        meetingLink: z.string().min(1, "Meeting link required"),
+        meetingType: z.string().min(1, "Meeting type required"),
+        language: z.string().min(1, "Language required"),
         isDemo: z.boolean().optional().default(false),
       });
 
