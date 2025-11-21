@@ -32,7 +32,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Download video audio
-      audioFile = await downloadYouTubeAudio(videoUrl);
+      try {
+        audioFile = await downloadYouTubeAudio(videoUrl);
+      } catch (downloadError) {
+        // If YouTube download fails, provide helpful error message
+        const errorMessage =
+          downloadError instanceof Error ? downloadError.message : "Failed to download YouTube video";
+        return res.status(400).json({
+          error: "YouTube Download Failed",
+          message: errorMessage,
+          suggestion:
+            "Please use the 'Upload Audio' feature instead to analyze your meeting.",
+        });
+      }
 
       // Transcribe audio
       let transcript = "Meeting transcription in progress...";

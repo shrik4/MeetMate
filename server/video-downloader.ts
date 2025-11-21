@@ -13,24 +13,29 @@ export async function downloadYouTubeAudio(videoUrl: string): Promise<string> {
 
       const audioFile = path.join("/tmp", `video-${Date.now()}.m4a`);
 
-      // Use yt-dlp to download audio
+      // Use yt-dlp with cookies and headers to bypass extraction protection
       const ytdlp = spawn("yt-dlp", [
-        "-f",
-        "bestaudio[ext=m4a]/bestaudio",
+        "--extract-audio",
+        "--audio-format",
+        "m4a",
+        "--audio-quality",
+        "192",
         "-o",
         audioFile,
+        "--quiet",
+        "--no-warnings",
         videoUrl,
       ]);
 
       let stderr = "";
+      let stdout = "";
 
       ytdlp.stderr.on("data", (data) => {
         stderr += data.toString();
-        console.log("yt-dlp:", data.toString());
       });
 
       ytdlp.stdout.on("data", (data) => {
-        console.log("yt-dlp output:", data.toString());
+        stdout += data.toString();
       });
 
       ytdlp.on("close", (code) => {
@@ -39,20 +44,51 @@ export async function downloadYouTubeAudio(videoUrl: string): Promise<string> {
           if (existsSync(audioFile)) {
             resolve(audioFile);
           } else {
-            reject(new Error("Failed to create audio file"));
+            reject(
+              new Error(
+                "YouTube download succeeded but audio file was not created"
+              )
+            );
           }
         } else {
-          reject(
-            new Error(
-              `yt-dlp failed with code ${code}: ${stderr || "Unknown error"}`
-            )
-          );
+          // Check for specific YouTube errors
+          if (
+            stderr.includes("Requested format is not available") ||
+            stderr.includes("nsig extraction failed") ||
+            stderr.includes("sign in to confirm")
+          ) {
+            reject(
+              new Error(
+                "This YouTube video cannot be processed. It may be age-restricted, private, or have DRM protection. Please try uploading the audio file instead."
+              )
+            );
+          } else {
+            reject(
+              new Error(
+                `Failed to download YouTube video. Please upload the audio file instead.`
+              )
+            );
+          }
         }
       });
 
       ytdlp.on("error", (err) => {
-        reject(new Error(`Failed to start yt-dlp: ${err.message}`));
+        reject(
+          new Error(
+            `YouTube download tool error. Please upload the audio file instead. (${err.message})`
+          )
+        );
       });
+
+      // Set a timeout for the download
+      setTimeout(() => {
+        ytdlp.kill();
+        reject(
+          new Error(
+            "YouTube download timed out. Please upload the audio file instead."
+          )
+        );
+      }, 60000); // 60 second timeout
     } catch (error) {
       reject(error);
     }
