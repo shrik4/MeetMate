@@ -119,9 +119,14 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
               }}
               data-testid="input-audio-file"
             />
-            <p className="text-xs text-muted-foreground">
-              Upload an MP3, WAV, or M4A file for real-time transcription and AI analysis
-            </p>
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3 space-y-1">
+              <p className="text-xs font-semibold text-blue-900 dark:text-blue-100">
+                💰 FREE Audio Transcription
+              </p>
+              <p className="text-xs text-blue-800 dark:text-blue-200">
+                Uses Google Cloud Speech-to-Text (60 min/month free). <a href="#" className="underline hover:text-blue-900 dark:hover:text-blue-100">Setup guide</a>
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
