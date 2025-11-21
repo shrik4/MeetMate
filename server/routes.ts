@@ -1,13 +1,73 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { analyzeMeeting } from "./gemini";
+import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  app.post("/api/analyze-meeting", async (req, res) => {
+    try {
+      const requestSchema = z.object({
+        meetingLink: z.string().url(),
+        meetingType: z.string(),
+        language: z.string(),
+        isDemo: z.boolean().optional().default(false),
+      });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+      const { meetingLink, meetingType, language, isDemo } = requestSchema.parse(req.body);
+
+      // Create meeting record
+      const meeting = await storage.createMeeting({
+        meetingLink,
+        meetingType,
+        language,
+      });
+
+      // Analyze the meeting using Gemini
+      const analysisResult = await analyzeMeeting(
+        meetingLink,
+        meetingType,
+        language,
+        isDemo
+      );
+
+      // Store the analysis
+      const analysis = await storage.createMeetingAnalysis({
+        meetingId: meeting.id,
+        summary: analysisResult.summary,
+        decisions: analysisResult.decisions,
+        actionItems: analysisResult.actionItems,
+        blockers: analysisResult.blockers,
+        sentimentTimeline: analysisResult.sentimentTimeline,
+        emailDraft: analysisResult.emailDraft,
+        duration: analysisResult.duration,
+        participants: analysisResult.participants,
+        mood: analysisResult.mood,
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing meeting:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid request data", details: error.errors });
+      } else {
+        res.status(500).json({ 
+          error: "Failed to analyze meeting",
+          message: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    }
+  });
+
+  app.get("/api/meetings", async (_req, res) => {
+    try {
+      const analyses = await storage.getAllMeetingAnalyses();
+      res.json(analyses);
+    } catch (error) {
+      console.error("Error fetching meetings:", error);
+      res.status(500).json({ error: "Failed to fetch meetings" });
+    }
+  });
 
   const httpServer = createServer(app);
 

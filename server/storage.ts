@@ -1,37 +1,64 @@
-import { type User, type InsertUser } from "@shared/schema";
+import {
+  type Meeting,
+  type InsertMeeting,
+  type MeetingAnalysis,
+  type InsertMeetingAnalysis,
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// modify the interface with any CRUD methods
-// you might need
-
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createMeeting(meeting: InsertMeeting): Promise<Meeting>;
+  getMeeting(id: string): Promise<Meeting | undefined>;
+  createMeetingAnalysis(analysis: InsertMeetingAnalysis): Promise<MeetingAnalysis>;
+  getMeetingAnalysis(meetingId: string): Promise<MeetingAnalysis | undefined>;
+  getAllMeetingAnalyses(): Promise<MeetingAnalysis[]>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private meetings: Map<string, Meeting>;
+  private analyses: Map<string, MeetingAnalysis>;
 
   constructor() {
-    this.users = new Map();
+    this.meetings = new Map();
+    this.analyses = new Map();
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
+    const id = randomUUID();
+    const meeting: Meeting = {
+      ...insertMeeting,
+      id,
+      createdAt: new Date(),
+    };
+    this.meetings.set(id, meeting);
+    return meeting;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+  async getMeeting(id: string): Promise<Meeting | undefined> {
+    return this.meetings.get(id);
+  }
+
+  async createMeetingAnalysis(
+    insertAnalysis: InsertMeetingAnalysis
+  ): Promise<MeetingAnalysis> {
+    const id = randomUUID();
+    const analysis: MeetingAnalysis = {
+      ...insertAnalysis,
+      id,
+      createdAt: new Date(),
+    };
+    this.analyses.set(id, analysis);
+    return analysis;
+  }
+
+  async getMeetingAnalysis(meetingId: string): Promise<MeetingAnalysis | undefined> {
+    return Array.from(this.analyses.values()).find(
+      (analysis) => analysis.meetingId === meetingId
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async getAllMeetingAnalyses(): Promise<MeetingAnalysis[]> {
+    return Array.from(this.analyses.values());
   }
 }
 
