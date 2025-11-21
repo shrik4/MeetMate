@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { analyzeMeeting } from "./gemini";
 import { transcribeAudio } from "./transcribe";
 import { transcribeAudioGoogle } from "./transcribe-google";
+import { transcribeAudioHuggingFace } from "./transcribe-huggingface";
 import { z } from "zod";
 import multer from "multer";
 
@@ -17,7 +18,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No audio file provided" });
       }
 
-      const { meetingType = "Meeting", language = "English", apiKey, provider = "google" } = req.body;
+      const { meetingType = "Meeting", language = "English", apiKey, hfApiKey, provider = "google" } = req.body;
 
       console.log("Transcribing audio file:", {
         filename: req.file.originalname,
@@ -28,34 +29,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let transcript = "";
       let usedProvider = provider;
+      let lastError: Error | null = null;
 
-      // Try Google Cloud first (free tier)
-      if (provider === "google" || !provider) {
+      // Try providers in order
+      const providers = [provider || "google", "google", "huggingface", "openai"].filter(
+        (p, i, arr) => arr.indexOf(p) === i // Remove duplicates
+      );
+
+      for (const p of providers) {
         try {
-          transcript = await transcribeAudioGoogle(req.file.buffer, req.file.mimetype);
-          usedProvider = "google";
-        } catch (googleError) {
-          console.log("Google Cloud transcription failed, trying OpenAI...", googleError);
-          // Fallback to OpenAI if Google fails
-          if (apiKey) {
-            try {
-              transcript = await transcribeAudio(req.file.buffer, req.file.mimetype);
-              usedProvider = "openai";
-            } catch (openaiError) {
-              throw new Error(
-                `Transcription failed with both providers. Google: ${googleError instanceof Error ? googleError.message : "unknown"}. OpenAI: ${openaiError instanceof Error ? openaiError.message : "unknown"}`
-              );
+          if (p === "google") {
+            transcript = await transcribeAudioGoogle(req.file.buffer, req.file.mimetype);
+            usedProvider = "google";
+            break;
+          } else if (p === "huggingface") {
+            if (!hfApiKey && !process.env.HUGGING_FACE_API_KEY) {
+              continue; // Skip if no key available
             }
-          } else {
-            throw new Error(
-              "Google Cloud transcription failed. Please provide OpenAI API key as fallback or check Google Cloud credentials."
+            transcript = await transcribeAudioHuggingFace(
+              req.file.buffer,
+              req.file.mimetype,
+              hfApiKey || process.env.HUGGING_FACE_API_KEY || ""
             );
+            usedProvider = "huggingface";
+            break;
+          } else if (p === "openai") {
+            if (!apiKey && !process.env.OPENAI_API_KEY) {
+              continue; // Skip if no key available
+            }
+            transcript = await transcribeAudio(req.file.buffer, req.file.mimetype);
+            usedProvider = "openai";
+            break;
           }
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          console.log(`Provider ${p} failed:`, lastError.message);
+          continue;
         }
-      } else if (provider === "openai") {
-        transcript = await transcribeAudio(req.file.buffer, req.file.mimetype);
-      } else {
-        return res.status(400).json({ error: "Invalid transcription provider" });
+      }
+
+      if (!transcript) {
+        throw lastError || new Error("All transcription providers failed. Please set up Google Cloud, Hugging Face, or OpenAI.");
       }
 
       console.log(`Transcription complete using ${usedProvider}, analyzing...`);

@@ -27,6 +27,9 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
   const [apiKey, setApiKey] = useState(() => {
     return typeof window !== "undefined" ? localStorage.getItem("gemini_api_key") || "" : "";
   });
+  const [hfApiKey, setHfApiKey] = useState(() => {
+    return typeof window !== "undefined" ? localStorage.getItem("huggingface_api_key") || "" : "";
+  });
   const [audioFile, setAudioFile] = useState<File | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,9 +37,21 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
     if (apiKey) {
       localStorage.setItem("gemini_api_key", apiKey);
     }
+    if (hfApiKey) {
+      localStorage.setItem("huggingface_api_key", hfApiKey);
+    }
     
     // If audio file is selected, analyze it instead
     if (audioFile) {
+      // Pass both API keys to the handler
+      const userData = {
+        audioFile,
+        meetingType,
+        language,
+        geminiApiKey: apiKey || undefined,
+        hfApiKey: hfApiKey || undefined,
+      };
+      // For now, use the existing callback but we'll need to update the parent
       onAnalyzeAudio?.(audioFile, meetingType, language, apiKey || undefined);
       return;
     }
@@ -60,19 +75,36 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="api-key">Gemini API Key (Optional)</Label>
-            <Input
-              id="api-key"
-              type="password"
-              placeholder="sk-... or your Gemini API key"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              data-testid="input-api-key"
-            />
-            <p className="text-xs text-muted-foreground">
-              Enter your Gemini API key to use your own quota. Get one at <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">ai.google.dev</a>
-            </p>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="api-key">Gemini API Key (Optional - for analysis)</Label>
+              <Input
+                id="api-key"
+                type="password"
+                placeholder="Your Gemini API key"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                data-testid="input-api-key"
+              />
+              <p className="text-xs text-muted-foreground">
+                For meeting intelligence. Get one at <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">ai.google.dev</a>
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="hf-key">Hugging Face API Key (Optional - for transcription)</Label>
+              <Input
+                id="hf-key"
+                type="password"
+                placeholder="hf_..."
+                value={hfApiKey}
+                onChange={(e) => setHfApiKey(e.target.value)}
+                data-testid="input-hf-key"
+              />
+              <p className="text-xs text-muted-foreground">
+                500 free API calls/month. Get one at <a href="https://huggingface.co" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">huggingface.co</a>
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -119,13 +151,15 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
               }}
               data-testid="input-audio-file"
             />
-            <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3 space-y-1">
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3 space-y-2">
               <p className="text-xs font-semibold text-blue-900 dark:text-blue-100">
-                💰 FREE Audio Transcription
+                🎉 Choose Your FREE Transcription Provider
               </p>
-              <p className="text-xs text-blue-800 dark:text-blue-200">
-                Uses Google Cloud Speech-to-Text (60 min/month free). <a href="#" className="underline hover:text-blue-900 dark:hover:text-blue-100">Setup guide</a>
-              </p>
+              <div className="space-y-1 text-xs text-blue-800 dark:text-blue-200">
+                <div>• <strong>Hugging Face:</strong> 500 free calls/month (recommended) <a href="./SETUP_HUGGINGFACE.md" className="underline">Setup</a></div>
+                <div>• <strong>Google Cloud:</strong> 60 minutes/month free <a href="./SETUP_GOOGLE_CLOUD.md" className="underline">Setup</a></div>
+                <div>• <strong>OpenAI:</strong> Paid option for high volume</div>
+              </div>
             </div>
           </div>
 
