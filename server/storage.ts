@@ -12,6 +12,9 @@ export interface IStorage {
   createMeetingAnalysis(analysis: InsertMeetingAnalysis): Promise<MeetingAnalysis>;
   getMeetingAnalysis(meetingId: string): Promise<MeetingAnalysis | undefined>;
   getAllMeetingAnalyses(): Promise<MeetingAnalysis[]>;
+  toggleFavorite(analysisId: string): Promise<MeetingAnalysis | undefined>;
+  updateNotes(analysisId: string, notes: string): Promise<MeetingAnalysis | undefined>;
+  updateTranscript(analysisId: string, transcript: string): Promise<MeetingAnalysis | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -59,6 +62,39 @@ export class MemStorage implements IStorage {
 
   async getAllMeetingAnalyses(): Promise<MeetingAnalysis[]> {
     return Array.from(this.analyses.values());
+  }
+
+  async toggleFavorite(analysisId: string): Promise<MeetingAnalysis | undefined> {
+    const analysis = this.analyses.get(analysisId);
+    if (analysis) {
+      const updated = {
+        ...analysis,
+        isFavorite: analysis.isFavorite ? 0 : 1,
+      };
+      this.analyses.set(analysisId, updated);
+      return updated;
+    }
+    return undefined;
+  }
+
+  async updateNotes(analysisId: string, notes: string): Promise<MeetingAnalysis | undefined> {
+    const analysis = this.analyses.get(analysisId);
+    if (analysis) {
+      const updated = { ...analysis, notes };
+      this.analyses.set(analysisId, updated);
+      return updated;
+    }
+    return undefined;
+  }
+
+  async updateTranscript(analysisId: string, transcript: string): Promise<MeetingAnalysis | undefined> {
+    const analysis = this.analyses.get(analysisId);
+    if (analysis) {
+      const updated = { ...analysis, transcript };
+      this.analyses.set(analysisId, updated);
+      return updated;
+    }
+    return undefined;
   }
 }
 

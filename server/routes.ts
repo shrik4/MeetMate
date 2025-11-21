@@ -86,6 +86,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/meetings/:id/toggle-favorite", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updated = await storage.toggleFavorite(id);
+      if (updated) {
+        res.json(updated);
+      } else {
+        res.status(404).json({ error: "Meeting not found" });
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      res.status(500).json({ error: "Failed to toggle favorite" });
+    }
+  });
+
+  app.post("/api/meetings/:id/notes", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      const updated = await storage.updateNotes(id, notes || "");
+      if (updated) {
+        res.json(updated);
+      } else {
+        res.status(404).json({ error: "Meeting not found" });
+      }
+    } catch (error) {
+      console.error("Error updating notes:", error);
+      res.status(500).json({ error: "Failed to update notes" });
+    }
+  });
+
+  app.post("/api/meetings/:id/transcript", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { transcript } = req.body;
+      const updated = await storage.updateTranscript(id, transcript || "");
+      if (updated) {
+        res.json(updated);
+      } else {
+        res.status(404).json({ error: "Meeting not found" });
+      }
+    } catch (error) {
+      console.error("Error updating transcript:", error);
+      res.status(500).json({ error: "Failed to update transcript" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -4,10 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, Copy, Mail, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Copy, Mail, CheckCircle2, Download, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { MeetingAnalysis } from "@shared/schema";
 import { SentimentChart } from "./sentiment-chart";
+import { MeetingInsights } from "./meeting-insights";
+import { generatePDF } from "./pdf-export";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ResultsDashboardProps {
   analysis: MeetingAnalysis | null;
@@ -15,6 +19,23 @@ interface ResultsDashboardProps {
 
 export function ResultsDashboard({ analysis }: ResultsDashboardProps) {
   const { toast } = useToast();
+  const [isFavorite, setIsFavorite] = useState(analysis?.isFavorite === 1);
+
+  const favoriteMutation = useMutation({
+    mutationFn: async () => {
+      if (analysis?.id) {
+        const response = await apiRequest("POST", `/api/meetings/${analysis.id}/toggle-favorite`, {});
+        return response;
+      }
+    },
+    onSuccess: () => {
+      setIsFavorite(!isFavorite);
+      toast({
+        title: isFavorite ? "Removed from favorites" : "Added to favorites",
+        description: "Meeting marked successfully",
+      });
+    },
+  });
 
   if (!analysis) {
     return (
