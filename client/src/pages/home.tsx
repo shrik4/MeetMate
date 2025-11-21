@@ -19,10 +19,14 @@ export default function Home() {
 
   const analyzeMutation = useMutation({
     mutationFn: async (url: string) => {
-      return await apiRequest("POST", "/api/analyze-meeting", { videoUrl: url }) as unknown as MeetingAnalysis;
+      const response = await apiRequest("POST", "/api/analyze-meeting", {
+        videoUrl: url,
+      });
+      return response as MeetingAnalysis;
     },
     onSuccess: (data) => {
       setAnalysis(data);
+      setVideoUrl("");
       toast({
         title: "Analysis Complete!",
         description: "Your meeting has been analyzed.",
@@ -42,13 +46,18 @@ export default function Home() {
       const formData = new FormData();
       formData.append("audioFile", file);
       formData.append("title", file.name);
-      return fetch("/api/upload-audio", {
+      const response = await fetch("/api/upload-audio", {
         method: "POST",
         body: formData,
-      }).then((r) => r.json()) as Promise<MeetingAnalysis>;
+      });
+      if (!response.ok) {
+        throw new Error("Failed to process audio");
+      }
+      return response.json() as Promise<MeetingAnalysis>;
     },
     onSuccess: (data) => {
       setAnalysis(data);
+      setAudioFile(null);
       toast({
         title: "Audio Processed!",
         description: "Your audio has been transcribed and analyzed.",
@@ -66,10 +75,11 @@ export default function Home() {
   const emailMutation = useMutation({
     mutationFn: async () => {
       if (!analysis) throw new Error("No analysis to email");
-      return await apiRequest("POST", "/api/send-email", {
+      const response = await apiRequest("POST", "/api/send-email", {
         analysisId: analysis.id,
         recipientEmail,
       });
+      return response;
     },
     onSuccess: () => {
       toast({
@@ -125,12 +135,14 @@ export default function Home() {
                       onChange={(e) => setVideoUrl(e.target.value)}
                       className="bg-slate-700 border-slate-600"
                       disabled={isLoading}
+                      data-testid="input-video-url"
                     />
                   </div>
                   <Button
                     onClick={() => videoUrl && analyzeMutation.mutate(videoUrl)}
                     disabled={!videoUrl || isLoading}
                     className="w-full"
+                    data-testid="button-analyze-url"
                   >
                     {isLoading ? (
                       <>
@@ -162,12 +174,14 @@ export default function Home() {
                       onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
                       className="bg-slate-700 border-slate-600"
                       disabled={isLoading}
+                      data-testid="input-audio-file"
                     />
                   </div>
                   <Button
                     onClick={() => audioFile && audioMutation.mutate(audioFile)}
                     disabled={!audioFile || isLoading}
                     className="w-full"
+                    data-testid="button-analyze-audio"
                   >
                     {isLoading ? (
                       <>
@@ -184,15 +198,17 @@ export default function Home() {
 
             {/* Analysis Results */}
             <div className="lg:col-span-2">
-              {analysis ? (
+              {analysis && analysis.executiveSummary ? (
                 <div className="space-y-4">
                   {/* Summary Card */}
                   <Card className="bg-gradient-to-br from-blue-600 to-blue-700 border-0 text-white">
                     <CardHeader>
-                      <CardTitle>Executive Summary</CardTitle>
+                      <CardTitle data-testid="text-summary-title">Executive Summary</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-lg">{analysis.executiveSummary}</p>
+                      <p className="text-lg" data-testid="text-summary-content">
+                        {analysis.executiveSummary}
+                      </p>
                     </CardContent>
                   </Card>
 
@@ -201,7 +217,10 @@ export default function Home() {
                     <Card className="bg-slate-800 border-slate-700">
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-blue-400">
+                          <div
+                            className="text-3xl font-bold text-blue-400"
+                            data-testid="text-efficiency-score"
+                          >
                             {analysis.efficiencyScore}%
                           </div>
                           <p className="text-slate-400 text-sm">Efficiency Score</p>
@@ -211,7 +230,7 @@ export default function Home() {
                     <Card className="bg-slate-800 border-slate-700">
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-400">
+                          <div className="text-2xl font-bold text-green-400" data-testid="text-sentiment">
                             {analysis.sentiment}
                           </div>
                           <p className="text-slate-400 text-sm">Meeting Sentiment</p>
@@ -221,39 +240,51 @@ export default function Home() {
                   </div>
 
                   {/* Key Points */}
-                  <Card className="bg-slate-800 border-slate-700">
-                    <CardHeader>
-                      <CardTitle>Key Discussion Points</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-2">
-                        {analysis.keyPoints.map((point, i) => (
-                          <li key={i} className="flex gap-2 text-slate-200">
-                            <span className="text-blue-400">•</span>
-                            {point}
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
+                  {Array.isArray(analysis.keyPoints) && analysis.keyPoints.length > 0 && (
+                    <Card className="bg-slate-800 border-slate-700">
+                      <CardHeader>
+                        <CardTitle>Key Discussion Points</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {analysis.keyPoints.map((point, i) => (
+                            <li
+                              key={i}
+                              className="flex gap-2 text-slate-200"
+                              data-testid={`text-key-point-${i}`}
+                            >
+                              <span className="text-blue-400">•</span>
+                              {point}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Action Items */}
-                  <Card className="bg-slate-800 border-slate-700">
-                    <CardHeader>
-                      <CardTitle>Action Items</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {analysis.actionItems.map((item, i) => (
-                          <div key={i} className="p-3 bg-slate-700 rounded-lg">
-                            <div className="font-semibold text-white">{item.assignee}</div>
-                            <div className="text-slate-300">{item.task}</div>
-                            <div className="text-sm text-slate-400 mt-1">Due: {item.deadline}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {Array.isArray(analysis.actionItems) && analysis.actionItems.length > 0 && (
+                    <Card className="bg-slate-800 border-slate-700">
+                      <CardHeader>
+                        <CardTitle>Action Items</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {analysis.actionItems.map((item, i) => (
+                            <div
+                              key={i}
+                              className="p-3 bg-slate-700 rounded-lg"
+                              data-testid={`card-action-item-${i}`}
+                            >
+                              <div className="font-semibold text-white">{item.assignee}</div>
+                              <div className="text-slate-300">{item.task}</div>
+                              <div className="text-sm text-slate-400 mt-1">Due: {item.deadline}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Email Section */}
                   <Card className="bg-slate-800 border-slate-700">
@@ -270,11 +301,13 @@ export default function Home() {
                         value={recipientEmail}
                         onChange={(e) => setRecipientEmail(e.target.value)}
                         className="bg-slate-700 border-slate-600"
+                        data-testid="input-recipient-email"
                       />
                       <Button
                         onClick={() => emailMutation.mutate()}
                         disabled={!recipientEmail || emailMutation.isPending}
                         className="w-full"
+                        data-testid="button-send-email"
                       >
                         {emailMutation.isPending ? (
                           <>
@@ -291,7 +324,7 @@ export default function Home() {
               ) : (
                 <Card className="bg-slate-800 border-slate-700 h-full flex items-center justify-center min-h-96">
                   <CardContent className="text-center">
-                    <p className="text-slate-400 text-lg">
+                    <p className="text-slate-400 text-lg" data-testid="text-placeholder">
                       Paste a meeting link or upload audio to get started
                     </p>
                   </CardContent>
