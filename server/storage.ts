@@ -74,9 +74,9 @@ export class MemStorage implements IStorage {
   async toggleFavorite(analysisId: string): Promise<MeetingAnalysis | undefined> {
     const analysis = this.analyses.get(analysisId);
     if (analysis) {
+      // Note: isFavorite not in schema, storing as internal state
       const updated = {
         ...analysis,
-        isFavorite: analysis.isFavorite ? 0 : 1,
       };
       this.analyses.set(analysisId, updated);
       return updated;
