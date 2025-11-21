@@ -13,6 +13,7 @@ interface MeetingInputProps {
     meetingType: string;
     language: string;
     isDemo: boolean;
+    apiKey?: string;
   }) => void;
   isLoading: boolean;
 }
@@ -22,10 +23,16 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
   const [meetingType, setMeetingType] = useState("Team Standup");
   const [language, setLanguage] = useState("English");
   const [isDemo, setIsDemo] = useState(false);
+  const [apiKey, setApiKey] = useState(() => {
+    return typeof window !== "undefined" ? localStorage.getItem("gemini_api_key") || "" : "";
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAnalyze({ meetingLink, meetingType, language, isDemo });
+    if (apiKey) {
+      localStorage.setItem("gemini_api_key", apiKey);
+    }
+    onAnalyze({ meetingLink, meetingType, language, isDemo, apiKey: apiKey || undefined });
   };
 
   const useSampleLink = () => {
@@ -43,6 +50,21 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="api-key">Gemini API Key (Optional)</Label>
+            <Input
+              id="api-key"
+              type="password"
+              placeholder="sk-... or your Gemini API key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              data-testid="input-api-key"
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter your Gemini API key to use your own quota. Get one at <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">ai.google.dev</a>
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="meeting-link">Meeting recording link</Label>
             <Input

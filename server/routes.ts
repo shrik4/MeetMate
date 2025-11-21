@@ -12,9 +12,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         meetingType: z.string().min(1, "Meeting type required"),
         language: z.string().min(1, "Language required"),
         isDemo: z.boolean().optional().default(false),
+        apiKey: z.string().optional(),
       });
 
-      const { meetingLink, meetingType, language, isDemo } = requestSchema.parse(req.body);
+      const { meetingLink, meetingType, language, isDemo, apiKey } = requestSchema.parse(req.body);
 
       // Create meeting record
       const meeting = await storage.createMeeting({
@@ -28,7 +29,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         meetingLink,
         meetingType,
         language,
-        isDemo
+        isDemo,
+        apiKey
       );
 
       // Store the analysis

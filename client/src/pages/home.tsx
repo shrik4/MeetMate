@@ -20,6 +20,7 @@ export default function Home() {
       meetingType: string;
       language: string;
       isDemo: boolean;
+      apiKey?: string;
     }) => {
       const response = await apiRequest("POST", "/api/analyze-meeting", data);
       return response as MeetingAnalysis;

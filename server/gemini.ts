@@ -5,7 +5,8 @@
 import { GoogleGenAI } from "@google/genai";
 import type { ActionItem, SentimentPoint } from "@shared/schema";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// Create default AI instance with environment API key
+const defaultAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 interface MeetingAnalysisResult {
   summary: string;
@@ -23,8 +24,11 @@ export async function analyzeMeeting(
   meetingLink: string,
   meetingType: string,
   language: string,
-  isDemo: boolean
+  isDemo: boolean,
+  apiKey?: string
 ): Promise<MeetingAnalysisResult> {
+  // Use provided API key or fall back to environment variable
+  const ai = apiKey ? new GoogleGenAI({ apiKey }) : defaultAi;
   // For demo mode or when we can't actually fetch the video, use AI to generate realistic sample data
   const prompt = `You are analyzing a ${meetingType} meeting conducted in ${language}.
 ${isDemo ? "This is a demo/sample meeting for demonstration purposes." : `Meeting link: ${meetingLink}`}
