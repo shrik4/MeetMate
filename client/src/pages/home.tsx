@@ -19,8 +19,6 @@ export default function Home() {
       meetingLink: string;
       meetingType: string;
       language: string;
-      isDemo: boolean;
-      apiKey?: string;
     }) => {
       return await apiRequest("POST", "/api/analyze-meeting", data) as unknown as MeetingAnalysis;
     },

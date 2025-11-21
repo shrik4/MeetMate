@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 
 interface MeetingInputProps {
@@ -12,7 +11,6 @@ interface MeetingInputProps {
     meetingLink: string;
     meetingType: string;
     language: string;
-    isDemo: boolean;
   }) => void;
   isLoading: boolean;
 }
@@ -21,16 +19,10 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
   const [meetingLink, setMeetingLink] = useState("");
   const [meetingType, setMeetingType] = useState("Team Standup");
   const [language, setLanguage] = useState("English");
-  const [isDemo, setIsDemo] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAnalyze({ meetingLink, meetingType, language, isDemo });
-  };
-
-  const useSampleLink = () => {
-    setMeetingLink("https://www.youtube.com/watch?v=sample-meeting");
-    setIsDemo(true);
+    onAnalyze({ meetingLink, meetingType, language });
   };
 
   return (
@@ -88,47 +80,21 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="demo-mode"
-              checked={isDemo}
-              onCheckedChange={(checked) => setIsDemo(checked === true)}
-              data-testid="checkbox-demo-mode"
-            />
-            <label
-              htmlFor="demo-mode"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              This is a short sample meeting (for demo)
-            </label>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={isLoading || !meetingLink}
-              data-testid="button-analyze"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                "Analyze Meeting"
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={useSampleLink}
-              disabled={isLoading}
-              data-testid="button-sample-link"
-            >
-              Use sample meeting link
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading || !meetingLink}
+            data-testid="button-analyze"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              "Analyze Meeting"
+            )}
+          </Button>
         </form>
       </CardContent>
     </Card>
