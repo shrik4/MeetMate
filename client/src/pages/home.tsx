@@ -43,36 +43,6 @@ export default function Home() {
     },
   });
 
-  const audioMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const response = await fetch("/api/transcribe-and-analyze", {
-        method: "POST",
-        body: data,
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to transcribe audio");
-      }
-      return await response.json() as MeetingAnalysis;
-    },
-    onSuccess: (data) => {
-      setAnalysis(data);
-      toast({
-        title: "Transcription & Analysis Complete!",
-        description: "Your audio has been transcribed and analyzed successfully.",
-      });
-      
-      const section = document.getElementById("results-section");
-      section?.scrollIntoView({ behavior: "smooth" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Transcription Failed",
-        description: error.message || "Failed to transcribe audio. Make sure OPENAI_API_KEY is set.",
-        variant: "destructive",
-      });
-    },
-  });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -87,19 +57,7 @@ export default function Home() {
               <div>
                 <MeetingInput
                   onAnalyze={(data) => analyzeMutation.mutate(data)}
-                  onAnalyzeAudio={(file, meetingType, language) => {
-                    const formData = new FormData();
-                    formData.append("audioFile", file);
-                    formData.append("meetingType", meetingType);
-                    formData.append("language", language);
-                    // Get HF key from localStorage
-                    const hfKey = typeof window !== "undefined" ? localStorage.getItem("huggingface_api_key") : null;
-                    if (hfKey) {
-                      formData.append("hfApiKey", hfKey);
-                    }
-                    audioMutation.mutate(formData);
-                  }}
-                  isLoading={analyzeMutation.isPending || audioMutation.isPending}
+                  isLoading={analyzeMutation.isPending}
                 />
               </div>
               
