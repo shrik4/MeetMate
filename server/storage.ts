@@ -52,7 +52,6 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
       transcript: null,
       notes: null,
-      isFavorite: 0,
     } as MeetingAnalysis;
     this.analyses.set(id, analysis);
     return analysis;
