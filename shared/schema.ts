@@ -23,6 +23,9 @@ export const meetingAnalyses = pgTable("meeting_analyses", {
   duration: integer("duration"),
   participants: integer("participants"),
   mood: text("mood"),
+  transcript: text("transcript"),
+  notes: text("notes"),
+  isFavorite: integer("is_favorite").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
