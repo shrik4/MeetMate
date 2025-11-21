@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { analyzeMeeting } from "./gemini";
 import { transcribeAudioGoogle } from "./transcribe-google";
 import { transcribeAudioHuggingFace } from "./transcribe-huggingface";
+import { sendEmail, generateAnalysisEmail, generateNotificationEmail } from "./email";
 import { z } from "zod";
 import multer from "multer";
 
@@ -225,6 +226,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating transcript:", error);
       res.status(500).json({ error: "Failed to update transcript" });
+    }
+  });
+
+  // Send analysis via email
+  app.post("/api/send-analysis-email", async (req, res) => {
+    try {
+      const schema = z.object({
+        analysisId: z.string(),
+        recipientEmail: z.string().email(),
+      });
+
+      const { analysisId, recipientEmail } = schema.parse(req.body);
+
+      // Get the analysis
+      const analysis = await storage.getMeetingAnalysis(analysisId);
+      if (!analysis) {
+        return res.status(404).json({ error: "Analysis not found" });
+      }
+
+      // Get the meeting for context
+      const meeting = await storage.getMeeting(analysis.meetingId);
+      if (!meeting) {
+        return res.status(404).json({ error: "Meeting not found" });
+      }
+
+      // Generate email content
+      const htmlContent = generateAnalysisEmail(
+        meeting.meetingType,
+        analysis.summary,
+        analysis.decisions,
+        analysis.actionItems,
+        analysis.blockers,
+        analysis.mood || "Neutral"
+      );
+
+      // Send email
+      await sendEmail({
+        to: recipientEmail,
+        subject: `Meeting Analysis: ${meeting.meetingType}`,
+        html: htmlContent,
+      });
+
+      res.json({ success: true, message: "Analysis sent successfully" });
+    } catch (error) {
+      console.error("Error sending analysis email:", error);
+      res.status(500).json({
+        error: "Failed to send email",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  // Send email draft
+  app.post("/api/send-email-draft", async (req, res) => {
+    try {
+      const schema = z.object({
+        analysisId: z.string(),
+        recipientEmail: z.string().email(),
+      });
+
+      const { analysisId, recipientEmail } = schema.parse(req.body);
+
+      // Get the analysis
+      const analysis = await storage.getMeetingAnalysis(analysisId);
+      if (!analysis) {
+        return res.status(404).json({ error: "Analysis not found" });
+      }
+
+      // Send the pre-written email draft
+      await sendEmail({
+        to: recipientEmail,
+        subject: "Follow-up from Meeting",
+        html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><pre style="white-space: pre-wrap; word-wrap: break-word;">${analysis.emailDraft}</pre></div>`,
+      });
+
+      res.json({ success: true, message: "Email draft sent successfully" });
+    } catch (error) {
+      console.error("Error sending email draft:", error);
+      res.status(500).json({
+        error: "Failed to send email draft",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  // Send notification
+  app.post("/api/send-notification", async (req, res) => {
+    try {
+      const schema = z.object({
+        analysisId: z.string(),
+        recipientEmail: z.string().email(),
+      });
+
+      const { analysisId, recipientEmail } = schema.parse(req.body);
+
+      // Get the analysis
+      const analysis = await storage.getMeetingAnalysis(analysisId);
+      if (!analysis) {
+        return res.status(404).json({ error: "Analysis not found" });
+      }
+
+      // Get the meeting for context
+      const meeting = await storage.getMeeting(analysis.meetingId);
+      if (!meeting) {
+        return res.status(404).json({ error: "Meeting not found" });
+      }
+
+      // Send notification
+      await sendEmail({
+        to: recipientEmail,
+        subject: `Your ${meeting.meetingType} Analysis is Ready`,
+        html: generateNotificationEmail(meeting.meetingType),
+      });
+
+      res.json({ success: true, message: "Notification sent successfully" });
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      res.status(500).json({
+        error: "Failed to send notification",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
