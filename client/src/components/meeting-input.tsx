@@ -15,10 +15,11 @@ interface MeetingInputProps {
     isDemo: boolean;
     apiKey?: string;
   }) => void;
+  onAnalyzeAudio?: (file: File, meetingType: string, language: string, apiKey?: string) => void;
   isLoading: boolean;
 }
 
-export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
+export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingInputProps) {
   const [meetingLink, setMeetingLink] = useState("");
   const [meetingType, setMeetingType] = useState("Team Standup");
   const [language, setLanguage] = useState("English");
@@ -33,6 +34,14 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
     if (apiKey) {
       localStorage.setItem("gemini_api_key", apiKey);
     }
+    
+    // If audio file is selected, analyze it instead
+    if (audioFile) {
+      onAnalyzeAudio?.(audioFile, meetingType, language, apiKey || undefined);
+      return;
+    }
+    
+    // Otherwise analyze the meeting link
     onAnalyze({ meetingLink, meetingType, language, isDemo, apiKey: apiKey || undefined });
   };
 
@@ -67,16 +76,52 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="meeting-link">Meeting recording link</Label>
+            <Label htmlFor="meeting-link">Meeting Recording</Label>
+            {audioFile ? (
+              <div className="flex items-center justify-between rounded-lg border border-green-600 bg-green-50 dark:bg-green-950 p-3">
+                <div>
+                  <p className="text-sm font-medium text-green-900 dark:text-green-100">✓ Audio file selected</p>
+                  <p className="text-xs text-green-700 dark:text-green-300">{audioFile.name}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAudioFile(null)}
+                  data-testid="button-remove-audio"
+                >
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <Input
+                id="meeting-link"
+                type="text"
+                placeholder="https://meet.google.com/... or https://zoom.us/j/... or YouTube link..."
+                value={meetingLink}
+                onChange={(e) => setMeetingLink(e.target.value)}
+                data-testid="input-meeting-link"
+              />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="audio-file">Or upload audio file (MP3, WAV, M4A)</Label>
             <Input
-              id="meeting-link"
-              type="text"
-              placeholder="https://meet.google.com/... or https://zoom.us/j/... or YouTube link..."
-              value={meetingLink}
-              onChange={(e) => setMeetingLink(e.target.value)}
-              required
-              data-testid="input-meeting-link"
+              id="audio-file"
+              type="file"
+              accept="audio/*"
+              onChange={(e) => {
+                setAudioFile(e.target.files?.[0] || null);
+                if (e.target.files?.[0]) {
+                  setMeetingLink("");
+                }
+              }}
+              data-testid="input-audio-file"
             />
+            <p className="text-xs text-muted-foreground">
+              Upload an MP3, WAV, or M4A file for real-time transcription and AI analysis
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -131,16 +176,16 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
             <Button
               type="submit"
               className="flex-1"
-              disabled={isLoading || !meetingLink}
+              disabled={isLoading || (!meetingLink && !audioFile)}
               data-testid="button-analyze"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
+                  {audioFile ? "Transcribing..." : "Analyzing..."}
                 </>
               ) : (
-                "Analyze Meeting"
+                audioFile ? "Transcribe & Analyze" : "Analyze Meeting"
               )}
             </Button>
             <Button

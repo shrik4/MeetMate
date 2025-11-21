@@ -2,9 +2,74 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { analyzeMeeting } from "./gemini";
+import { transcribeAudio } from "./transcribe";
 import { z } from "zod";
+import multer from "multer";
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Transcribe audio file and analyze
+  app.post("/api/transcribe-and-analyze", upload.single("audioFile"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No audio file provided" });
+      }
+
+      const { meetingType = "Meeting", language = "English", apiKey } = req.body;
+
+      console.log("Transcribing audio file:", {
+        filename: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+
+      // Transcribe the audio
+      const transcript = await transcribeAudio(req.file.buffer, req.file.mimetype);
+      
+      console.log("Transcription complete, analyzing...");
+
+      // Create meeting record
+      const meeting = await storage.createMeeting({
+        meetingLink: req.file.originalname,
+        meetingType,
+        language,
+      });
+
+      // Analyze the transcript using Gemini
+      const analysisResult = await analyzeMeeting(
+        transcript, // Use transcript instead of link
+        meetingType,
+        language,
+        false, // Not demo mode
+        apiKey
+      );
+
+      // Store the analysis
+      const analysis = await storage.createMeetingAnalysis({
+        meetingId: meeting.id,
+        summary: analysisResult.summary,
+        decisions: analysisResult.decisions,
+        actionItems: analysisResult.actionItems,
+        blockers: analysisResult.blockers,
+        sentimentTimeline: analysisResult.sentimentTimeline,
+        emailDraft: analysisResult.emailDraft,
+        duration: analysisResult.duration,
+        participants: analysisResult.participants,
+        mood: analysisResult.mood,
+        transcript,
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error transcribing and analyzing:", error);
+      res.status(500).json({
+        error: "Failed to transcribe and analyze audio",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
   app.post("/api/analyze-meeting", async (req, res) => {
     try {
       const requestSchema = z.object({
