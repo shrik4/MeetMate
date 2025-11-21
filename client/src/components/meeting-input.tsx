@@ -153,10 +153,16 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Note: In this hackathon version, analysis is simulated with sample AI output. 
-            Backend can be connected later to process real meeting recordings.
-          </p>
+          <div className="space-y-2 rounded-lg bg-muted p-3">
+            <p className="text-xs font-semibold text-foreground">Demo Mode Information</p>
+            <p className="text-xs text-muted-foreground">
+              This app generates realistic sample meeting analysis based on the meeting type you select. 
+              It does <strong>not</strong> download or process actual video content from YouTube/Zoom/Teams links.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              To analyze real meetings, you would need: video downloading, audio extraction, transcription (via Whisper API), then AI analysis.
+            </p>
+          </div>
         </form>
       </CardContent>
     </Card>
