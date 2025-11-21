@@ -1,0 +1,285 @@
+Here’s a ready-to-use **frontend UI prompt** for MeetMate AI (with **meeting link input instead of audio upload**).
+Just **copy–paste this into your AI code assistant** (v0, Cursor, Replit Agent, etc.) to generate the UI.
+
+---
+
+### 🧾 FRONTEND UI PROMPT (MeetMate AI – Link-Based)
+
+You are an expert frontend engineer and UI/UX designer.
+Build a **single-page SaaS-style web app UI** for a product called:
+
+> **MeetMate AI — Real-Time Meeting Intelligence & Auto-Decision Assistant**
+
+---
+
+#### 🛠 Tech & Structure
+
+* Use **React** with **Tailwind CSS** (or clean CSS modules if Tailwind is not available).
+* Create a **single-page app** layout (no complex routing required).
+* The design must be:
+
+  * Modern, clean SaaS look
+  * Responsive (desktop, tablet, mobile)
+  * Suitable as a **hackathon demo** (fast, impressive, polished)
+* Use **dummy/static data** for now where backend results will appear (no real API calls needed).
+
+---
+
+#### 🌗 Theme & Overall Layout
+
+* Default to a **dark theme** with an optional **light/dark mode toggle** in the top-right.
+* Main layout:
+
+  * **Top navbar**
+  * **Hero section** (short pitch)
+  * **Main app panel / dashboard** for link input + results
+  * **Small footer** with hackathon credits
+
+Use lots of cards, shadows, rounded corners, and clear spacing like a modern AI SaaS dashboard.
+
+---
+
+#### 🔝 Navbar
+
+Create a sticky **top navbar** with:
+
+* Left: Logo mark + text:
+
+  * Logo: simple circle with “MM” inside or a minimal icon
+  * Text: **MeetMate AI**
+* Right:
+
+  * Links: “Product”, “How it works”, “Demo”
+  * A button: **“Try Live Demo”**
+  * A **theme toggle** (🌞 / 🌙 icon)
+
+Navbar should have a subtle blur or shadow.
+
+---
+
+#### ⚡ Hero Section (Above the App)
+
+Just under the navbar, show a hero section:
+
+* Left side:
+
+  * Big title:
+
+    > “Turn any meeting link into instant tasks, decisions & follow-ups.”
+  * Short subtitle:
+
+    > “Paste your Google Meet, Zoom, Teams, or YouTube meeting link and let MeetMate AI convert it into summaries, action items, decisions, and a ready-to-send follow-up email.”
+  * 2–3 pill-style badges:
+
+    * “AI Meeting Intelligence”
+    * “Built for Hackathons & Startups”
+    * “No manual note-taking”
+* Right side:
+
+  * Simple **mock preview card** of the dashboard (a fake small screenshot-style card showing summary, tasks, etc.)
+
+Add a primary CTA button: **“Paste a meeting link below”** that scrolls to the main app section.
+
+---
+
+#### 🧩 Main App / Dashboard Section
+
+Place this below the hero, centered with max-width (e.g., `max-w-6xl mx-auto`).
+
+Layout: **Two-column on desktop, stacked on mobile**.
+
+---
+
+##### 👉 Left Panel – Input & Controls
+
+Card titled **“1. Paste your meeting link”** with:
+
+* Label: **“Meeting recording link”**
+* Input: full-width text input field with placeholder like:
+
+  > `https://meet.google.com/...` or `https://zoom.us/j/...` or `YouTube link…`
+* Below input, add:
+
+  * A dropdown/select: **“Meeting type”**
+
+    * Options: “Team Standup”, “Client Call”, “Project Review”, “Classroom Session”, “Brainstorming”
+  * A dropdown/select: **“Language”**
+
+    * Options: “English”, “Hindi”, “Kannada”, “Other”
+* A toggle or checkbox:
+
+  * “This is a short sample meeting (for demo)”
+* Primary button: **“Analyze Meeting”**
+
+  * Show loading state style (e.g., “Analyzing…”)
+* Secondary ghost button: **“Use sample meeting link”**
+
+  * This will be used in demo – no real logic needed, just UI.
+
+Below buttons, add a tiny info text:
+
+> “Note: In this hackathon version, analysis is simulated with sample AI output. Backend can be connected later to process real meeting recordings.”
+
+---
+
+##### 👉 Right Panel – AI Results Dashboard
+
+Wrap all results in a card titled **“2. AI Meeting Intelligence Report”**.
+
+Inside, use **tabs or sections** for the different outputs. Either:
+
+* Horizontal tabs, or
+* Stacked cards with headings
+
+Include these sections:
+
+---
+
+###### 1. Summary Card
+
+* Title: **“Meeting Summary”**
+* Show:
+
+  * 3–5 bullet points of dummy summary text.
+* Add pill tags above or below:
+
+  * “Duration: 30 min”
+  * “Participants: 4”
+  * “Mood: Mostly Positive”
+
+---
+
+###### 2. Decisions Card
+
+* Title: **“Decisions Taken”**
+* Show a numbered list (dummy text), like:
+
+  1. Launch landing page on Monday.
+  2. Demo video to be recorded by tomorrow.
+* Optional subtle badge: “Auto-detected by AI”.
+
+---
+
+###### 3. Action Items Table
+
+* Title: **“Action Items”**
+* Table columns:
+
+  * Task
+  * Owner
+  * Deadline
+  * Priority (with colored badges: Low / Medium / High)
+* Fill with 3–5 sample rows (static data).
+* Add a small button on top-right: **“Copy as checklist”** (no functionality needed, just visual).
+
+---
+
+###### 4. Problems / Blockers
+
+* Title: **“Problems & Blockers”**
+* Show a bullet list of 2–3 issues discussed in the meeting (dummy text).
+* Optional icon “⚠️” in the card header.
+
+---
+
+###### 5. Sentiment Timeline / Heatmap
+
+* Title: **“Sentiment Over Time”**
+* Create a simple **placeholder chart**:
+
+  * Use any basic line chart or fake graph (static SVG or simple div-based bars is fine).
+  * Show labels like: “Start”, “Middle”, “End”.
+* Under the chart, add mini labels:
+
+  * “Green = Positive”, “Red = Negative”, “Yellow = Neutral”.
+* Add a short one-line insight text, e.g.:
+
+  > “Discussion became slightly tense during deadline negotiation, then returned to neutral.”
+
+(If chart library is too heavy, create a simple hand-crafted visualization with divs, not real data.)
+
+---
+
+###### 6. Auto Email Draft
+
+* Title: **“Follow-up Email Draft”**
+
+* Multi-line read-only textarea or styled box with a sample email like:
+
+  > Hi team,
+  > Here are the key points from today’s meeting:
+  > • Landing page UI to be completed by Monday (Rahul)
+  > • API integration by Monday (Shrikar)
+  > • Demo video to be recorded by tomorrow
+  >
+  > Thanks,
+  > MeetMate AI
+
+* Add buttons:
+
+  * **“Copy email”**
+  * **“Open in mail app”** (no need to implement, just UI)
+
+---
+
+#### 💡 “How It Works” Mini Section
+
+Below the dashboard, add a **3-step horizontal or vertical timeline**:
+
+1. **Paste meeting link**
+   Short text: “Provide your Google Meet, Zoom, Teams, or YouTube recording link.”
+
+2. **AI analyzes the conversation**
+   Short text: “Transcription + summarization + decision & task extraction + sentiment.”
+
+3. **Get instant report & email**
+   Short text: “Share with your team in one click. No manual note-taking.”
+
+Each step with an icon and a card-like appearance.
+
+---
+
+#### 👣 Footer
+
+A small footer at the bottom:
+
+* Text like:
+
+  > “Built in 20 hours for [Hackathon Name] by [Your Name]. Powered by AI.”
+* Optional small links: “GitHub”, “LinkedIn”, “Privacy (Mock)”
+
+---
+
+#### 🎨 Styling Details
+
+* Use **rounded-xl** or similar for cards.
+* Use soft shadows, hover states and smooth transitions.
+* Use **accent color** (e.g., blue or purple) for primary buttons and highlights.
+* Use clear typography: large headings for sections, smaller for card titles.
+* Ensure **mobile-friendly**:
+
+  * Stack columns vertically
+  * Cards full-width
+  * Navbar collapses into a simple menu icon (even if non-functional).
+
+---
+
+#### 🧪 Dummy Data & State
+
+* For the button **“Analyze Meeting”**, simulate a “loading state” in UI:
+
+  * Disable button + show spinner icon + text “Analyzing…”
+  * After a few seconds (using simple state), show the dashboard cards (or they can be visible by default, filled with placeholder data).
+* You do **not** need real backend integration — just design the UI in a way that backend can easily hook into later.
+
+---
+
+#### 🧾 Deliverable
+
+Return **complete React code** (components, Tailwind setup usage in classes) for this single-page MeetMate AI app UI, ready to run.
+Focus on **clean structure, readable components, and visually impressive hackathon-ready UI**.
+
+---
+
+You can now just paste this into your AI code tool and let it generate the frontend.
+If you want, next we can write the **backend prompt** for the link → analysis API.
