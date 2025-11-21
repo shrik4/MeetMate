@@ -45,6 +45,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mood: analysisResult.mood,
       });
 
+      console.log("Analysis result from Gemini:", {
+        summaryLength: analysisResult.summary?.length,
+        decisionsCount: analysisResult.decisions?.length,
+        actionItemsCount: analysisResult.actionItems?.length,
+        blockersCount: analysisResult.blockers?.length,
+        sentimentCount: analysisResult.sentimentTimeline?.length,
+      });
+      
+      console.log("Analysis stored in database:", {
+        id: analysis.id,
+        summaryLength: analysis.summary?.length,
+        decisionsCount: analysis.decisions?.length,
+        actionItemsCount: analysis.actionItems?.length,
+      });
+
       res.json(analysis);
     } catch (error) {
       console.error("Error analyzing meeting:", error);

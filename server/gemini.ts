@@ -150,6 +150,13 @@ Make the content realistic and professional for a ${meetingType} in a business/t
 
     const result: MeetingAnalysisResult = JSON.parse(rawJson);
     console.log("Parsed result keys:", Object.keys(result));
+    console.log("Result details:", {
+      summaryLength: result.summary?.length,
+      decisionsCount: result.decisions?.length,
+      actionItemsCount: result.actionItems?.length,
+      blockersCount: result.blockers?.length,
+      sentimentCount: result.sentimentTimeline?.length,
+    });
     
     // Validate required fields and provide defaults if missing
     if (!result.summary) {
@@ -164,6 +171,14 @@ Make the content realistic and professional for a ${meetingType} in a business/t
     result.participants = result.participants || 4;
     result.mood = result.mood || "Productive";
     result.emailDraft = result.emailDraft || "Meeting summary not available.";
+    
+    console.log("Final result after defaults:", {
+      summaryLength: result.summary?.length,
+      decisionsCount: result.decisions?.length,
+      actionItemsCount: result.actionItems?.length,
+      blockersCount: result.blockers?.length,
+      sentimentCount: result.sentimentTimeline?.length,
+    });
     
     return result;
   } catch (error) {
