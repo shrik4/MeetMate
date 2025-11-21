@@ -26,6 +26,7 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
   const [apiKey, setApiKey] = useState(() => {
     return typeof window !== "undefined" ? localStorage.getItem("gemini_api_key") || "" : "";
   });
+  const [audioFile, setAudioFile] = useState<File | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,14 +154,18 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
             </Button>
           </div>
 
-          <div className="space-y-2 rounded-lg bg-muted p-3">
-            <p className="text-xs font-semibold text-foreground">Demo Mode Information</p>
+          <div className="space-y-2">
+            <Label htmlFor="audio-file">Upload Meeting Recording (MP3, WAV, M4A)</Label>
+            <Input
+              id="audio-file"
+              type="file"
+              accept="audio/*"
+              onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+              data-testid="input-audio-file"
+            />
+            {audioFile && <p className="text-xs text-green-600">Selected: {audioFile.name}</p>}
             <p className="text-xs text-muted-foreground">
-              This app generates realistic sample meeting analysis based on the meeting type you select. 
-              It does <strong>not</strong> download or process actual video content from YouTube/Zoom/Teams links.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              To analyze real meetings, you would need: video downloading, audio extraction, transcription (via Whisper API), then AI analysis.
+              Upload an audio file or paste a meeting link for analysis
             </p>
           </div>
         </form>
