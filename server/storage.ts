@@ -11,6 +11,7 @@ export interface IStorage {
   getMeeting(id: string): Promise<Meeting | undefined>;
   createMeetingAnalysis(analysis: InsertMeetingAnalysis): Promise<MeetingAnalysis>;
   getMeetingAnalysis(meetingId: string): Promise<MeetingAnalysis | undefined>;
+  getMeetingAnalysisById(analysisId: string): Promise<MeetingAnalysis | undefined>;
   getAllMeetingAnalyses(): Promise<MeetingAnalysis[]>;
   toggleFavorite(analysisId: string): Promise<MeetingAnalysis | undefined>;
   updateNotes(analysisId: string, notes: string): Promise<MeetingAnalysis | undefined>;
@@ -61,6 +62,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.analyses.values()).find(
       (analysis) => analysis.meetingId === meetingId
     );
+  }
+
+  async getMeetingAnalysisById(analysisId: string): Promise<MeetingAnalysis | undefined> {
+    return this.analyses.get(analysisId);
   }
 
   async getAllMeetingAnalyses(): Promise<MeetingAnalysis[]> {

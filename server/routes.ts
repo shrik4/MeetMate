@@ -154,8 +154,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { analysisId, recipientEmail } = schema.parse(req.body);
 
-      // Get analysis
-      const analysis = await storage.getMeetingAnalysis(analysisId);
+      // Get analysis by ID
+      const analysis = await storage.getMeetingAnalysisById(analysisId);
       if (!analysis) {
         return res.status(404).json({ error: "Analysis not found" });
       }
