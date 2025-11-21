@@ -13,9 +13,8 @@ interface MeetingInputProps {
     meetingType: string;
     language: string;
     isDemo: boolean;
-    apiKey?: string;
   }) => void;
-  onAnalyzeAudio?: (file: File, meetingType: string, language: string, apiKey?: string) => void;
+  onAnalyzeAudio?: (file: File, meetingType: string, language: string) => void;
   isLoading: boolean;
 }
 
@@ -24,9 +23,6 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
   const [meetingType, setMeetingType] = useState("Team Standup");
   const [language, setLanguage] = useState("English");
   const [isDemo, setIsDemo] = useState(false);
-  const [apiKey, setApiKey] = useState(() => {
-    return typeof window !== "undefined" ? localStorage.getItem("gemini_api_key") || "" : "";
-  });
   const [hfApiKey, setHfApiKey] = useState(() => {
     return typeof window !== "undefined" ? localStorage.getItem("huggingface_api_key") || "" : "";
   });
@@ -34,30 +30,18 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (apiKey) {
-      localStorage.setItem("gemini_api_key", apiKey);
-    }
     if (hfApiKey) {
       localStorage.setItem("huggingface_api_key", hfApiKey);
     }
     
     // If audio file is selected, analyze it instead
     if (audioFile) {
-      // Pass both API keys to the handler
-      const userData = {
-        audioFile,
-        meetingType,
-        language,
-        geminiApiKey: apiKey || undefined,
-        hfApiKey: hfApiKey || undefined,
-      };
-      // For now, use the existing callback but we'll need to update the parent
-      onAnalyzeAudio?.(audioFile, meetingType, language, apiKey || undefined);
+      onAnalyzeAudio?.(audioFile, meetingType, language);
       return;
     }
     
     // Otherwise analyze the meeting link
-    onAnalyze({ meetingLink, meetingType, language, isDemo, apiKey: apiKey || undefined });
+    onAnalyze({ meetingLink, meetingType, language, isDemo, apiKey: undefined });
   };
 
   const useSampleLink = () => {
@@ -75,36 +59,19 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="api-key">Gemini API Key (Optional - for analysis)</Label>
-              <Input
-                id="api-key"
-                type="password"
-                placeholder="Your Gemini API key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                data-testid="input-api-key"
-              />
-              <p className="text-xs text-muted-foreground">
-                For meeting intelligence. Get one at <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">ai.google.dev</a>
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="hf-key">Hugging Face API Key (Optional - for transcription)</Label>
-              <Input
-                id="hf-key"
-                type="password"
-                placeholder="hf_..."
-                value={hfApiKey}
-                onChange={(e) => setHfApiKey(e.target.value)}
-                data-testid="input-hf-key"
-              />
-              <p className="text-xs text-muted-foreground">
-                500 free API calls/month. Get one at <a href="https://huggingface.co" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">huggingface.co</a>
-              </p>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="hf-key">Hugging Face API Key (Required for audio transcription)</Label>
+            <Input
+              id="hf-key"
+              type="password"
+              placeholder="hf_..."
+              value={hfApiKey}
+              onChange={(e) => setHfApiKey(e.target.value)}
+              data-testid="input-hf-key"
+            />
+            <p className="text-xs text-muted-foreground">
+              500 free API calls/month. Get one at <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">huggingface.co/settings/tokens</a>
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -153,12 +120,11 @@ export function MeetingInput({ onAnalyze, onAnalyzeAudio, isLoading }: MeetingIn
             />
             <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3 space-y-2">
               <p className="text-xs font-semibold text-blue-900 dark:text-blue-100">
-                🎉 Choose Your FREE Transcription Provider
+                🎉 FREE Audio Transcription
               </p>
               <div className="space-y-1 text-xs text-blue-800 dark:text-blue-200">
-                <div>• <strong>Hugging Face:</strong> 500 free calls/month (recommended) <a href="./SETUP_HUGGINGFACE.md" className="underline">Setup</a></div>
-                <div>• <strong>Google Cloud:</strong> 60 minutes/month free <a href="./SETUP_GOOGLE_CLOUD.md" className="underline">Setup</a></div>
-                <div>• <strong>OpenAI:</strong> Paid option for high volume</div>
+                <div>• <strong>Hugging Face:</strong> 500 free API calls/month</div>
+                <div>• <strong>Google Cloud:</strong> Fallback - 60 minutes/month (setup required)</div>
               </div>
             </div>
           </div>

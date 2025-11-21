@@ -87,15 +87,12 @@ export default function Home() {
               <div>
                 <MeetingInput
                   onAnalyze={(data) => analyzeMutation.mutate(data)}
-                  onAnalyzeAudio={(file, meetingType, language, geminiApiKey) => {
+                  onAnalyzeAudio={(file, meetingType, language) => {
                     const formData = new FormData();
                     formData.append("audioFile", file);
                     formData.append("meetingType", meetingType);
                     formData.append("language", language);
-                    if (geminiApiKey) {
-                      formData.append("apiKey", geminiApiKey);
-                    }
-                    // Get HF key from localStorage if available
+                    // Get HF key from localStorage
                     const hfKey = typeof window !== "undefined" ? localStorage.getItem("huggingface_api_key") : null;
                     if (hfKey) {
                       formData.append("hfApiKey", hfKey);

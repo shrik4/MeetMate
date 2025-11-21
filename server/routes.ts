@@ -2,7 +2,6 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { analyzeMeeting } from "./gemini";
-import { transcribeAudio } from "./transcribe";
 import { transcribeAudioGoogle } from "./transcribe-google";
 import { transcribeAudioHuggingFace } from "./transcribe-huggingface";
 import { z } from "zod";
@@ -18,58 +17,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No audio file provided" });
       }
 
-      const { meetingType = "Meeting", language = "English", apiKey, hfApiKey, provider = "google" } = req.body;
+      const { meetingType = "Meeting", language = "English", apiKey, hfApiKey } = req.body;
 
       console.log("Transcribing audio file:", {
         filename: req.file.originalname,
         size: req.file.size,
         mimetype: req.file.mimetype,
-        provider,
       });
 
       let transcript = "";
-      let usedProvider = provider;
-      let lastError: Error | null = null;
+      let usedProvider = "huggingface";
 
-      // Try providers in order
-      const providers = [provider || "google", "google", "huggingface", "openai"].filter(
-        (p, i, arr) => arr.indexOf(p) === i // Remove duplicates
-      );
-
-      for (const p of providers) {
-        try {
-          if (p === "google") {
-            transcript = await transcribeAudioGoogle(req.file.buffer, req.file.mimetype);
-            usedProvider = "google";
-            break;
-          } else if (p === "huggingface") {
-            if (!hfApiKey && !process.env.HUGGING_FACE_API_KEY) {
-              continue; // Skip if no key available
-            }
-            transcript = await transcribeAudioHuggingFace(
-              req.file.buffer,
-              req.file.mimetype,
-              hfApiKey || process.env.HUGGING_FACE_API_KEY || ""
-            );
-            usedProvider = "huggingface";
-            break;
-          } else if (p === "openai") {
-            if (!apiKey && !process.env.OPENAI_API_KEY) {
-              continue; // Skip if no key available
-            }
-            transcript = await transcribeAudio(req.file.buffer, req.file.mimetype);
-            usedProvider = "openai";
-            break;
-          }
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
-          console.log(`Provider ${p} failed:`, lastError.message);
-          continue;
+      // Try Hugging Face first (required)
+      try {
+        const key = hfApiKey || process.env.HUGGING_FACE_API_KEY;
+        if (!key) {
+          throw new Error("Hugging Face API key is required. Set HUGGING_FACE_API_KEY environment variable or provide hfApiKey in request.");
         }
-      }
-
-      if (!transcript) {
-        throw lastError || new Error("All transcription providers failed. Please set up Google Cloud, Hugging Face, or OpenAI.");
+        transcript = await transcribeAudioHuggingFace(
+          req.file.buffer,
+          req.file.mimetype,
+          key
+        );
+        usedProvider = "huggingface";
+      } catch (hfError) {
+        console.log("Hugging Face transcription failed:", hfError);
+        // Try Google Cloud as fallback
+        try {
+          transcript = await transcribeAudioGoogle(req.file.buffer, req.file.mimetype);
+          usedProvider = "google";
+          console.log("Falling back to Google Cloud Speech-to-Text");
+        } catch (googleError) {
+          throw new Error(
+            `Transcription failed. Hugging Face: ${hfError instanceof Error ? hfError.message : "unknown"}. Google Cloud: ${googleError instanceof Error ? googleError.message : "unknown"}`
+          );
+        }
       }
 
       console.log(`Transcription complete using ${usedProvider}, analyzing...`);
