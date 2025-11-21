@@ -69,7 +69,7 @@ export function MeetingInput({ onAnalyze, isLoading }: MeetingInputProps) {
             <Label htmlFor="meeting-link">Meeting recording link</Label>
             <Input
               id="meeting-link"
-              type="url"
+              type="text"
               placeholder="https://meet.google.com/... or https://zoom.us/j/... or YouTube link..."
               value={meetingLink}
               onChange={(e) => setMeetingLink(e.target.value)}
