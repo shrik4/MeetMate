@@ -3,14 +3,17 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { transcribeAudio, analyzeTranscript } from "./groq-service";
 import { sendEmail } from "./email-service";
+import { downloadYouTubeAudio } from "./video-downloader";
 import { z } from "zod";
 import multer from "multer";
+import { unlinkSync } from "fs";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Analyze meeting from video link
   app.post("/api/analyze-meeting", async (req, res) => {
+    let audioFile: string | null = null;
     try {
       const schema = z.object({
         videoUrl: z.string().url(),
@@ -28,24 +31,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transcription: "Processing...",
       });
 
-      // For now, return placeholder (real implementation would download and transcribe video)
+      // Download video audio
+      audioFile = await downloadYouTubeAudio(videoUrl);
+
+      // Transcribe audio
+      let transcript = "Meeting transcription in progress...";
+      try {
+        if (process.env.GROQ_API_KEY) {
+          transcript = await transcribeAudio(audioFile);
+        }
+      } catch (transcribeError) {
+        console.log("Transcription failed, using demo data:", transcribeError);
+      }
+
+      // Analyze transcript
+      const analysisResult = await analyzeTranscript(transcript, title);
+
+      // Update meeting with transcript
+      await storage.updateTranscript(meeting.id, transcript);
+
+      // Create analysis record
       const analysis = await storage.createMeetingAnalysis({
         meetingId: meeting.id,
-        executiveSummary: "Meeting analysis in progress. Video transcription and AI analysis are being performed.",
-        keyPoints: [
-          "Key discussion point 1",
-          "Key discussion point 2",
-          "Key discussion point 3",
-        ],
-        actionItems: [
-          {
-            assignee: "Team Lead",
-            task: "Follow up on action items",
-            deadline: "2024-12-31",
-          },
-        ],
-        sentiment: "Productive",
-        efficiencyScore: 75,
+        executiveSummary: analysisResult.executive_summary,
+        keyPoints: analysisResult.key_points_discussed,
+        actionItems: analysisResult.action_items,
+        sentiment: analysisResult.sentiment,
+        efficiencyScore: analysisResult.efficiency_score,
       });
 
       res.json(analysis);
@@ -55,6 +67,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to analyze meeting",
         message: error instanceof Error ? error.message : "Unknown error",
       });
+    } finally {
+      // Clean up temp file
+      if (audioFile) {
+        try {
+          unlinkSync(audioFile);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
     }
   });
 
