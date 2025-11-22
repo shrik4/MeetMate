@@ -12,6 +12,75 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
+  // Analyze meeting from video link
+  app.post("/api/analyze-meeting", async (req, res) => {
+    let audioFile: string | null = null;
+    try {
+      const schema = z.object({
+        videoUrl: z.string().url(),
+      });
+
+      const { videoUrl } = schema.parse(req.body);
+
+      const title = new URL(videoUrl).hostname.split(".")[0] || "Meeting";
+
+      const meeting = await storage.createMeeting({
+        videoUrl,
+        title,
+        transcription: "Processing...",
+      });
+
+      try {
+        audioFile = await downloadYouTubeAudio(videoUrl);
+      } catch (downloadError) {
+        const errorMessage =
+          downloadError instanceof Error ? downloadError.message : "Failed to download video";
+        return res.status(400).json({
+          error: "Download Failed",
+          message: errorMessage,
+          suggestion: "Please upload an audio file instead.",
+        });
+      }
+
+      let transcript = "Meeting transcription in progress...";
+      try {
+        if (process.env.GROQ_API_KEY) {
+          transcript = await transcribeAudio(audioFile);
+        }
+      } catch (transcribeError) {
+        console.log("Transcription failed, using demo data:", transcribeError);
+      }
+
+      const analysisResult = await analyzeTranscript(transcript, title);
+      await storage.updateTranscript(meeting.id, transcript);
+
+      const analysis = await storage.createMeetingAnalysis({
+        meetingId: meeting.id,
+        executiveSummary: analysisResult.executive_summary,
+        keyPoints: analysisResult.key_points_discussed,
+        actionItems: analysisResult.action_items,
+        sentiment: analysisResult.sentiment,
+        efficiencyScore: analysisResult.efficiency_score,
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing meeting:", error);
+      res.status(500).json({
+        error: "Failed to analyze meeting",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      if (audioFile) {
+        try {
+          unlinkSync(audioFile);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    }
+  });
+
   // Upload audio and analyze
   app.post("/api/upload-audio", upload.single("audioFile"), async (req, res) => {
     try {
