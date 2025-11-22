@@ -182,9 +182,9 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Link2 className="h-5 w-5" />
-                    YouTube Link
+                    YouTube Video
                   </CardTitle>
-                  <CardDescription>Paste video URL</CardDescription>
+                  <CardDescription>Uses captions when available</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>

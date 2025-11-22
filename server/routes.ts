@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { transcribeAudio, analyzeTranscript } from "./groq-service";
 import { sendEmail } from "./email-service";
 import { downloadYouTubeAudio } from "./video-downloader";
+import { getYouTubeTranscript } from "./youtube-service";
 import { z } from "zod";
 import multer from "multer";
 import { unlinkSync } from "fs";
@@ -12,9 +13,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
-  // Analyze meeting from video link
+  // Analyze meeting from video link (fetches captions via YouTube)
   app.post("/api/analyze-meeting", async (req, res) => {
-    let audioFile: string | null = null;
     try {
       const schema = z.object({
         videoUrl: z.string().url(),
@@ -27,28 +27,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const meeting = await storage.createMeeting({
         videoUrl,
         title,
-        transcription: "Processing...",
+        transcription: "Fetching captions...",
       });
 
+      let transcript = "";
       try {
-        audioFile = await downloadYouTubeAudio(videoUrl);
-      } catch (downloadError) {
+        // Fetch YouTube captions
+        transcript = await getYouTubeTranscript(videoUrl);
+      } catch (captionError) {
         const errorMessage =
-          downloadError instanceof Error ? downloadError.message : "Failed to download video";
+          captionError instanceof Error ? captionError.message : "Failed to fetch captions";
         return res.status(400).json({
-          error: "Download Failed",
+          error: "Caption Fetch Failed",
           message: errorMessage,
-          suggestion: "Please upload an audio file instead.",
+          suggestion: "Try uploading an audio file or paste the transcript instead.",
         });
-      }
-
-      let transcript = "Meeting transcription in progress...";
-      try {
-        if (process.env.GROQ_API_KEY) {
-          transcript = await transcribeAudio(audioFile);
-        }
-      } catch (transcribeError) {
-        console.log("Transcription failed, using demo data:", transcribeError);
       }
 
       const analysisResult = await analyzeTranscript(transcript, title);
@@ -70,14 +63,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to analyze meeting",
         message: error instanceof Error ? error.message : "Unknown error",
       });
-    } finally {
-      if (audioFile) {
-        try {
-          unlinkSync(audioFile);
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-      }
     }
   });
 
