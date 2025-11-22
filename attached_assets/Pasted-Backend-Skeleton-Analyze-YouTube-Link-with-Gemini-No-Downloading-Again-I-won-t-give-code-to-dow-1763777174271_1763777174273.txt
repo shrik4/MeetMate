@@ -1,0 +1,120 @@
+Backend Skeleton: Analyze YouTube Link with Gemini (No Downloading)
+
+Again: I won’t give code to download YouTube videos directly.
+Instead, I’ll show you a structure where:
+
+You send a video URL to your backend
+
+Your backend:
+
+Fetches/receives the transcript (via:
+
+YouTube’s official APIs / captions for your own or allowed content, or
+
+a transcript provided by the user)
+
+Sends the transcript to Gemini
+
+Returns structured JSON: summary, action items, decisions, sentiment, email draft
+
+Here’s a simple FastAPI + Gemini example in Python:
+
+# backend/main.py
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import google.generativeai as genai
+import os
+
+# 1. Configure Gemini
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+app = FastAPI()
+
+class AnalyzeRequest(BaseModel):
+    video_url: str
+    meeting_type: str | None = None
+    participants: list[str] | None = None
+
+class AnalyzeResponse(BaseModel):
+    summary: str
+    decisions: list[str]
+    action_items: list[dict]
+    problems: list[str]
+    sentiment_overall: str
+    sentiment_notes: str
+    email_draft: str
+
+def get_transcript_from_url(video_url: str) -> str:
+    """
+    IMPORTANT:
+    - Implement this using legal methods only, such as:
+      - YouTube Data API / captions for content you own or are allowed to use
+      - Or ask the user to paste/upload the transcript directly.
+    - Do NOT use libraries that bypass YouTube's protections or terms.
+    """
+    # TODO: Implement using an allowed, API-based method.
+    # For hackathon demo, you can mock this with a test transcript.
+    demo_transcript = """
+    Team, we need to finish the landing page by Monday.
+    Rahul will handle the UI.
+    Shrikar will integrate the API.
+    We also need a demo video ready by tomorrow.
+    """
+    return demo_transcript
+
+def call_gemini_for_meeting(transcript: str, meeting_type: str | None, participants: list[str] | None):
+    prompt = f"""
+You are an AI meeting assistant.
+
+Here is the MEETING TRANSCRIPT:
+\"\"\"{transcript}\"\"\"
+
+Meeting type: {meeting_type or "General"}
+Participants: {", ".join(participants or []) or "Not specified"}
+
+Extract the following in clear JSON:
+
+- summary: 4-6 bullet points summarizing the meeting
+- decisions: list of key decisions made
+- action_items: list of objects with fields:
+  - task (string)
+  - owner (string, if mentioned, else "Unassigned")
+  - deadline (string, if mentioned, else "Not specified")
+  - priority (High/Medium/Low based on urgency)
+- problems: list of issues / risks / blockers mentioned
+- sentiment_overall: string (e.g., "Mostly positive", "Mixed", "Stressed")
+- sentiment_notes: 2-3 sentences about why you chose that sentiment
+- email_draft: a short professional follow-up email with:
+  - greeting
+  - summary of discussion
+  - decisions
+  - action items
+  - deadlines
+  - closing line
+
+Return ONLY valid JSON, no extra text.
+"""
+
+    resp = model.generate_content(prompt)
+    import json
+    data = json.loads(resp.text)  # assuming Gemini returns pure JSON
+    return data
+
+@app.post("/analyze", response_model=AnalyzeResponse)
+def analyze_meeting(req: AnalyzeRequest):
+    transcript = get_transcript_from_url(req.video_url)
+    if not transcript.strip():
+        raise HTTPException(status_code=400, detail="Could not retrieve transcript")
+
+    data = call_gemini_for_meeting(transcript, req.meeting_type, req.participants)
+
+    return AnalyzeResponse(
+        summary=data.get("summary", ""),
+        decisions=data.get("decisions", []),
+        action_items=data.get("action_items", []),
+        problems=data.get("problems", []),
+        sentiment_overall=data.get("sentiment_overall", ""),
+        sentiment_notes=data.get("sentiment_notes", ""),
+        email_draft=data.get("email_draft", ""),
+    )

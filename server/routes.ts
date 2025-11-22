@@ -249,5 +249,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  // Analyze transcript directly (no download/transcription needed)
+  app.post("/api/analyze-transcript", async (req, res) => {
+    try {
+      const schema = z.object({
+        transcript: z.string().min(10),
+      });
+
+      const { transcript } = schema.parse(req.body);
+
+      const meeting = await storage.createMeeting({
+        videoUrl: "transcript",
+        title: "Meeting",
+        transcription: transcript,
+      });
+
+      const analysisResult = await analyzeTranscript(transcript, "Meeting");
+
+      const analysis = await storage.createMeetingAnalysis({
+        meetingId: meeting.id,
+        executiveSummary: analysisResult.executive_summary,
+        keyPoints: analysisResult.key_points_discussed,
+        actionItems: analysisResult.action_items,
+        sentiment: analysisResult.sentiment,
+        efficiencyScore: analysisResult.efficiency_score,
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing transcript:", error);
+      res.status(500).json({
+        error: "Failed to analyze transcript",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
   return httpServer;
 }

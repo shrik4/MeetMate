@@ -7,15 +7,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Upload, Mail, Link2 } from "lucide-react";
+import { Loader2, Upload, Mail, Link2, FileText } from "lucide-react";
 import type { MeetingAnalysis } from "@shared/schema";
 
 export default function Home() {
   const [videoUrl, setVideoUrl] = useState("");
+  const [transcript, setTranscript] = useState("");
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<MeetingAnalysis | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
   const { toast } = useToast();
+
+  const transcriptMutation = useMutation({
+    mutationFn: async (text: string) => {
+      const response = await apiRequest("POST", "/api/analyze-transcript", {
+        transcript: text,
+      });
+      return response as unknown as MeetingAnalysis;
+    },
+    onSuccess: (data) => {
+      setAnalysis(data);
+      setTranscript("");
+      toast({
+        title: "Analysis Complete!",
+        description: "Your meeting transcript has been analyzed.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Analysis Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const urlMutation = useMutation({
     mutationFn: async (url: string) => {
@@ -97,7 +122,7 @@ export default function Home() {
     },
   });
 
-  const isLoading = audioMutation.isPending || urlMutation.isPending;
+  const isLoading = audioMutation.isPending || urlMutation.isPending || transcriptMutation.isPending;
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -116,6 +141,42 @@ export default function Home() {
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Input Panel */}
             <div className="lg:col-span-1 space-y-4">
+              {/* Paste Transcript */}
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Paste Transcript
+                  </CardTitle>
+                  <CardDescription>Meeting text or captions</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <textarea
+                    placeholder="Paste meeting transcript, captions, or notes here..."
+                    value={transcript}
+                    onChange={(e) => setTranscript(e.target.value)}
+                    className="w-full h-32 bg-slate-700 border border-slate-600 rounded-md p-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isLoading}
+                    data-testid="textarea-transcript"
+                  />
+                  <Button
+                    onClick={() => transcript.trim() && transcriptMutation.mutate(transcript)}
+                    disabled={!transcript.trim() || isLoading}
+                    className="w-full"
+                    data-testid="button-analyze-transcript"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      "Analyze Transcript"
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
               {/* YouTube Link */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
