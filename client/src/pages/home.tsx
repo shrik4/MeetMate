@@ -7,39 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Upload, Mail, Link2 } from "lucide-react";
+import { Loader2, Upload, Mail } from "lucide-react";
 import type { MeetingAnalysis } from "@shared/schema";
 
 export default function Home() {
-  const [videoUrl, setVideoUrl] = useState("");
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<MeetingAnalysis | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
   const { toast } = useToast();
-
-  const urlMutation = useMutation({
-    mutationFn: async (url: string) => {
-      const response = await apiRequest("POST", "/api/analyze-meeting", {
-        videoUrl: url,
-      });
-      return response as unknown as MeetingAnalysis;
-    },
-    onSuccess: (data) => {
-      setAnalysis(data);
-      setVideoUrl("");
-      toast({
-        title: "Analysis Complete!",
-        description: "Your meeting has been analyzed.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Analysis Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   const audioMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -97,7 +72,7 @@ export default function Home() {
     },
   });
 
-  const isLoading = audioMutation.isPending || urlMutation.isPending;
+  const isLoading = audioMutation.isPending;
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -116,46 +91,6 @@ export default function Home() {
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Input Panel */}
             <div className="lg:col-span-1 space-y-4">
-              {/* YouTube Link */}
-              <Card className="bg-slate-800 border-slate-700">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Link2 className="h-5 w-5" />
-                    YouTube Video
-                  </CardTitle>
-                  <CardDescription>Uses captions when available</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label className="text-slate-200">Video URL</Label>
-                    <Input
-                      type="url"
-                      placeholder="https://youtube.com/watch?v=..."
-                      value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                      className="bg-slate-700 border-slate-600"
-                      disabled={isLoading}
-                      data-testid="input-video-url"
-                    />
-                  </div>
-                  <Button
-                    onClick={() => videoUrl && urlMutation.mutate(videoUrl)}
-                    disabled={!videoUrl || isLoading}
-                    className="w-full"
-                    data-testid="button-analyze-url"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      "Analyze Link"
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-
               {/* Audio Upload */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
