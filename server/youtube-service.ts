@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { unlinkSync, existsSync } from "fs";
+import { unlinkSync, existsSync, writeFileSync } from "fs";
 import { join } from "path";
 
 export async function downloadYouTubeAudio(videoUrl: string): Promise<{ filePath: string; title: string }> {
@@ -25,20 +25,28 @@ export async function downloadYouTubeAudio(videoUrl: string): Promise<{ filePath
     console.log(`⬇️ Processing YouTube Link: ${videoUrl}...`);
     console.log(`(Downloading compressed audio...)`);
 
-    // 1. Extract metadata first
-    const metadataCmd = `yt-dlp --no-warnings -j "${videoUrl}"`;
-    const metadataOutput = execSync(metadataCmd, { encoding: 'utf-8' });
+    // 1. Update yt-dlp with better headers to bypass YouTube anti-bot
+    const updateCmd = `yt-dlp --update-self`;
+    try {
+      execSync(updateCmd, { stdio: 'pipe' });
+    } catch (e) {
+      // Continue if update fails
+    }
+
+    // 2. Extract metadata with proper headers
+    const metadataCmd = `yt-dlp --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -j "${videoUrl}"`;
+    const metadataOutput = execSync(metadataCmd, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
     const metadata = JSON.parse(metadataOutput);
     const title = metadata.title || 'Meeting';
 
     console.log(`✅ Validated Link: '${title}'`);
     console.log(`(Downloading stream now...)`);
 
-    // 2. Download worst quality audio (compressed) - usually 32k-64k m4a
-    const downloadCmd = `yt-dlp --no-warnings -f "worstaudio[ext=m4a]/worstaudio[ext=webm]/worst" -o "${outputTemplate}" "${videoUrl}"`;
-    execSync(downloadCmd, { stdio: 'pipe' });
+    // 3. Download worst quality audio (compressed) - usually 32k-64k m4a with proper headers
+    const downloadCmd = `yt-dlp --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -f "worstaudio[ext=m4a]/worstaudio[ext=webm]/worst" -o "${outputTemplate}" "${videoUrl}"`;
+    execSync(downloadCmd, { stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 });
 
-    // 3. Find the downloaded file
+    // 4. Find the downloaded file
     let audioFile = join(tempDir, `yt-${timestamp}-${videoId}.m4a`);
     
     if (!existsSync(audioFile)) {
@@ -57,7 +65,7 @@ export async function downloadYouTubeAudio(videoUrl: string): Promise<{ filePath
       }
     }
 
-    // 4. Check file size (Groq has 25MB limit)
+    // 5. Check file size (Groq has 25MB limit)
     const fs = await import('fs');
     const stats = fs.statSync(audioFile);
     const sizeMb = stats.size / (1024 * 1024);
