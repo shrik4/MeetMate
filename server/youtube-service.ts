@@ -1,13 +1,10 @@
-import { execSync } from "child_process";
-import { unlinkSync, existsSync, writeFileSync } from "fs";
-import { join } from "path";
-
-export async function downloadYouTubeAudio(videoUrl: string): Promise<{ filePath: string; title: string }> {
-  const tempDir = "/tmp";
-  const timestamp = Date.now();
-  const outputTemplate = join(tempDir, `yt-${timestamp}-%(id)s.%(ext)s`);
-
+export async function getYouTubeTranscript(videoUrl: string): Promise<string> {
   try {
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) {
+      throw new Error('YouTube API key not configured');
+    }
+
     // Extract video ID from URL
     const urlObj = new URL(videoUrl);
     let videoId = '';
@@ -22,67 +19,69 @@ export async function downloadYouTubeAudio(videoUrl: string): Promise<{ filePath
       throw new Error('Invalid YouTube URL. Please check the link format.');
     }
 
-    console.log(`⬇️ Processing YouTube Link: ${videoUrl}...`);
-    console.log(`(Downloading compressed audio...)`);
+    console.log(`⬇️ Fetching captions for video: ${videoId}...`);
 
-    // 1. Update yt-dlp with better headers to bypass YouTube anti-bot
-    const updateCmd = `yt-dlp --update-self`;
-    try {
-      execSync(updateCmd, { stdio: 'pipe' });
-    } catch (e) {
-      // Continue if update fails
-    }
-
-    // 2. Extract metadata with proper headers
-    const metadataCmd = `yt-dlp --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -j "${videoUrl}"`;
-    const metadataOutput = execSync(metadataCmd, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-    const metadata = JSON.parse(metadataOutput);
-    const title = metadata.title || 'Meeting';
-
-    console.log(`✅ Validated Link: '${title}'`);
-    console.log(`(Downloading stream now...)`);
-
-    // 3. Download worst quality audio (compressed) - usually 32k-64k m4a with proper headers
-    const downloadCmd = `yt-dlp --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -f "worstaudio[ext=m4a]/worstaudio[ext=webm]/worst" -o "${outputTemplate}" "${videoUrl}"`;
-    execSync(downloadCmd, { stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 });
-
-    // 4. Find the downloaded file
-    let audioFile = join(tempDir, `yt-${timestamp}-${videoId}.m4a`);
-    
-    if (!existsSync(audioFile)) {
-      const webmFile = join(tempDir, `yt-${timestamp}-${videoId}.webm`);
-      const mp3File = join(tempDir, `yt-${timestamp}-${videoId}.mp3`);
-      const opusFile = join(tempDir, `yt-${timestamp}-${videoId}.opus`);
-      
-      if (existsSync(webmFile)) {
-        audioFile = webmFile;
-      } else if (existsSync(mp3File)) {
-        audioFile = mp3File;
-      } else if (existsSync(opusFile)) {
-        audioFile = opusFile;
-      } else {
-        throw new Error('Downloaded file not found');
+    // Get caption tracks for the video
+    const captionsResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/captions?videoId=${videoId}&key=${apiKey}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       }
+    );
+
+    if (!captionsResponse.ok) {
+      throw new Error(`YouTube API error: ${captionsResponse.status}`);
     }
 
-    // 5. Check file size (Groq has 25MB limit)
-    const fs = await import('fs');
-    const stats = fs.statSync(audioFile);
-    const sizeMb = stats.size / (1024 * 1024);
+    const captionsData = await captionsResponse.json();
+    const captions = captionsData.items || [];
+
+    if (!captions || captions.length === 0) {
+      throw new Error('No captions found for this video. Please ensure the video has captions enabled.');
+    }
+
+    // Get the first available caption track (prefer English)
+    let captionId = captions[0].id;
+    const englishCaption = captions.find((c: any) => 
+      c.language === 'en' || c.name?.value?.includes('English')
+    );
+    if (englishCaption) {
+      captionId = englishCaption.id;
+    }
+
+    console.log(`✅ Found caption track: ${captionId}`);
+    console.log(`(Downloading caption content...)`);
+
+    // Download caption content
+    const contentResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/captions/${captionId}?key=${apiKey}`,
+      {
+        headers: {
+          'Accept': 'text/plain',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
+
+    if (!contentResponse.ok) {
+      throw new Error('Unable to download caption content. Please ensure the video has captions enabled.');
+    }
+
+    const transcript = await contentResponse.text();
     
-    console.log(`✅ Download Complete: ${audioFile}`);
-    console.log(`📊 File Size: ${sizeMb.toFixed(2)} MB`);
-
-    if (sizeMb > 25) {
-      unlinkSync(audioFile);
-      throw new Error(`Audio file too large (${sizeMb.toFixed(1)}MB). Meeting may be too long (>30-40 mins). Try uploading a shorter segment.`);
+    if (!transcript || transcript.trim().length === 0) {
+      throw new Error('Caption content is empty. Please ensure the video has captions enabled.');
     }
 
-    return { filePath: audioFile, title };
+    console.log(`✅ Caption Download Complete`);
+    return transcript;
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`❌ ERROR: Could not access that link.`);
-    console.error(`Reason: ${errorMsg}`);
-    throw new Error(`Unable to download YouTube video: ${errorMsg}`);
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : 'Unable to fetch YouTube captions. Video may not have captions available.'
+    );
   }
 }
