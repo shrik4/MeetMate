@@ -1,0 +1,54 @@
+def download_user_link(video_url: str):
+    print(f"\n⬇  Processing Meeting Link: {video_url}...")
+    print(f"    (Engine: yt-dlp | Mode: Compressed Audio for Fast Upload)...")
+    
+    # 🟢 FORCE COMPRESSION:
+    # Downloads the 'worst quality audio' (usually 32k-64k m4a).
+    # This ensures even a 25-minute meeting stays under the 25MB Groq limit.
+    # Also sets User-Agent to trick YouTube into thinking we are a Browser.
+    ydl_opts = {
+        "outtmpl": str(DOWNLOAD_DIR / "%(id)s.%(ext)s"),
+        "quiet": True,
+        "no_warnings": True,
+        "format": "worstaudio[ext=m4a]/worst", 
+        "nocheckcertificate": True,
+    }
+
+    try:
+        # Initialize Download
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # 1. Extract Metadata
+            info = ydl.extract_info(video_url, download=False)
+            title = info.get('title', 'Unknown Meeting')
+            print(f"✅ Validated Link: '{title}'")
+            print("    (Downloading stream now...)")
+            
+            # 2. Download
+            info = ydl.extract_info(video_url, download=True)
+            filename = ydl.prepare_filename(info)
+            
+            # 3. Fix potential extension mismatch (yt-dlp behavior)
+            base = str(DOWNLOAD_DIR / info['id'])
+            if not os.path.exists(filename):
+                for ext in ['.m4a', '.webm', '.mp3', '.opus']:
+                    if os.path.exists(base + ext):
+                        filename = base + ext
+                        break
+
+        # 4. Check file size constraints
+        size_mb = os.path.getsize(filename) / (1024 * 1024)
+        print(f"✅ Download Complete: {filename}")
+        print(f"📊 File Size: {size_mb:.2f} MB")
+        
+        if size_mb > 25:
+            print("\n❌ FATAL ERROR: The Meeting is too long (> 30-40 mins).")
+            print(f"   Size ({size_mb:.1f}MB) exceeds AI limit (25MB).")
+            sys.exit(1)
+            
+        return filename, title
+
+    except Exception as e:
+        print(f"\n❌ ERROR: Could not access that link.")
+        print(f"   Reason: {e}")
+        print("\n👉 SUGGESTION: The video might be Private or Geo-Blocked.")
+        sys.exit(1)

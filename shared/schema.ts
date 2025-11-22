@@ -19,6 +19,9 @@ export const meetingAnalyses = pgTable("meeting_analyses", {
   actionItems: jsonb("action_items").notNull().$type<ActionItem[]>(),
   sentiment: text("sentiment").notNull(),
   efficiencyScore: integer("efficiency_score").notNull(),
+  isFavorite: integer("is_favorite").default(0).notNull(),
+  notes: text("notes"),
+  transcript: text("transcript"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
