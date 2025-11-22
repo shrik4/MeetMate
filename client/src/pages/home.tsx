@@ -22,7 +22,7 @@ export default function Home() {
       const response = await apiRequest("POST", "/api/analyze-meeting", {
         videoUrl: url,
       });
-      return response as MeetingAnalysis;
+      return response as unknown as MeetingAnalysis;
     },
     onSuccess: (data) => {
       setAnalysis(data);
