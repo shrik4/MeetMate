@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Upload, Mail } from "lucide-react";
+import { Loader2, Upload, Mail, Mic, Square } from "lucide-react";
 import type { MeetingAnalysis } from "@shared/schema";
 
 export default function Home() {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<MeetingAnalysis | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const [waveformData, setWaveformData] = useState<number[]>([]);
   const { toast } = useToast();
 
   const audioMutation = useMutation({
@@ -74,6 +83,78 @@ export default function Home() {
 
   const isLoading = audioMutation.isPending;
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      // Setup audio visualization
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      const analyser = audioContext.createAnalyser();
+      analyserRef.current = analyser;
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.fftSize = 256;
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      dataArrayRef.current = dataArray;
+
+      // Visualization loop
+      const visualize = () => {
+        analyser.getByteFrequencyData(dataArray);
+        setWaveformData(Array.from(dataArray).slice(0, 40));
+        if (isRecording) requestAnimationFrame(visualize);
+      };
+      visualize();
+
+      mediaRecorder.ondataavailable = (e) => {
+        audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const file = new File([audioBlob], "recording.webm", { type: "audio/webm" });
+        setAudioFile(file);
+        setRecordingTime(0);
+        setWaveformData([]);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+
+      timerRef.current = setInterval(() => {
+        setRecordingTime((t) => t + 1);
+      }, 1000);
+
+      toast({
+        title: "Recording Started",
+        description: "Click stop when you're done",
+      });
+    } catch (err) {
+      toast({
+        title: "Microphone Access Denied",
+        description: "Please allow microphone access to record meetings",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (audioContextRef.current) audioContextRef.current.close();
+      toast({
+        title: "Recording Stopped",
+        description: "Your audio is ready to analyze",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <Navbar />
@@ -91,6 +172,55 @@ export default function Home() {
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Input Panel */}
             <div className="lg:col-span-1 space-y-4">
+              {/* Live Recording */}
+              <Card className={`border-2 transition-all ${isRecording ? "bg-red-900/20 border-red-500" : "bg-slate-800 border-slate-700"}`}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mic className={`h-5 w-5 ${isRecording ? "animate-pulse text-red-500" : ""}`} />
+                    {isRecording ? "Recording Meeting" : "Live Recording"}
+                  </CardTitle>
+                  <CardDescription>
+                    {isRecording ? `Recording: ${recordingTime}s` : "Capture audio with your microphone"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isRecording && waveformData.length > 0 && (
+                    <div className="flex items-center justify-center gap-1 bg-slate-700 p-3 rounded-lg h-16">
+                      {waveformData.map((value, i) => (
+                        <div
+                          key={i}
+                          className="bg-gradient-to-t from-blue-500 to-blue-400 rounded-sm transition-all"
+                          style={{
+                            height: `${Math.max(10, (value / 255) * 100)}%`,
+                            width: "3px",
+                          }}
+                          data-testid={`waveform-bar-${i}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={isRecording ? stopRecording : startRecording}
+                      className={`flex-1 ${isRecording ? "bg-red-600 hover:bg-red-700" : ""}`}
+                      data-testid={isRecording ? "button-stop-recording" : "button-start-recording"}
+                    >
+                      {isRecording ? (
+                        <>
+                          <Square className="mr-2 h-4 w-4" />
+                          Stop Recording
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="mr-2 h-4 w-4" />
+                          Start Recording
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Audio Upload */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
