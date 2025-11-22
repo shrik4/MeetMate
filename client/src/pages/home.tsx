@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Upload, Mail, Mic, Square } from "lucide-react";
+import { Loader2, Upload, Mail, Mic, Square, Download } from "lucide-react";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import type { MeetingAnalysis } from "@shared/schema";
 
 export default function Home() {
@@ -155,6 +157,45 @@ export default function Home() {
     }
   };
 
+  const downloadPDF = async () => {
+    if (!analysis) return;
+
+    try {
+      const element = document.getElementById("analysis-report");
+      if (!element) return;
+
+      const canvas = await html2canvas(element, { backgroundColor: "#0f172a" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 190;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 10;
+
+      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+      heightLeft -= pdf.internal.pageSize.getHeight() - 20;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+      }
+
+      pdf.save(`MeetMate-Report-${new Date().toISOString().split("T")[0]}.pdf`);
+      toast({
+        title: "PDF Downloaded!",
+        description: "Your meeting report has been saved",
+      });
+    } catch (err) {
+      toast({
+        title: "Download Failed",
+        description: "Could not generate PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <Navbar />
@@ -264,7 +305,7 @@ export default function Home() {
             {/* Analysis Results */}
             <div className="lg:col-span-2">
               {analysis && analysis.executiveSummary ? (
-                <div className="space-y-4">
+                <div className="space-y-4" id="analysis-report">
                   {/* Summary Card */}
                   <Card className="bg-gradient-to-br from-blue-600 to-blue-700 border-0 text-white">
                     <CardHeader>
@@ -351,40 +392,70 @@ export default function Home() {
                     </Card>
                   )}
 
-                  {/* Email Section */}
-                  <Card className="bg-slate-800 border-slate-700">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Mail className="h-5 w-5" />
-                        Send Report
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <Input
-                        type="email"
-                        placeholder="recipient@example.com"
-                        value={recipientEmail}
-                        onChange={(e) => setRecipientEmail(e.target.value)}
-                        className="bg-slate-700 border-slate-600"
-                        data-testid="input-recipient-email"
-                      />
-                      <Button
-                        onClick={() => emailMutation.mutate()}
-                        disabled={!recipientEmail || emailMutation.isPending}
-                        className="w-full"
-                        data-testid="button-send-email"
-                      >
-                        {emailMutation.isPending ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          "Send Email"
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  {/* Actions Section */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Download PDF */}
+                    <Button
+                      onClick={downloadPDF}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-download-pdf"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download PDF
+                    </Button>
+
+                    {/* Email Section */}
+                    <Button
+                      onClick={() => {
+                        const emailModal = document.getElementById("email-modal");
+                        if (emailModal) {
+                          (emailModal as any).showModal?.();
+                        } else {
+                          setRecipientEmail("");
+                        }
+                      }}
+                      className="w-full"
+                      data-testid="button-open-email"
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Send Email
+                    </Button>
+                  </div>
+
+                  {/* Email Input */}
+                  {recipientEmail && (
+                    <Card className="bg-slate-800 border-slate-700">
+                      <CardHeader>
+                        <CardTitle className="text-base">Send Report</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <Input
+                          type="email"
+                          placeholder="recipient@example.com"
+                          value={recipientEmail}
+                          onChange={(e) => setRecipientEmail(e.target.value)}
+                          className="bg-slate-700 border-slate-600"
+                          data-testid="input-recipient-email"
+                        />
+                        <Button
+                          onClick={() => emailMutation.mutate()}
+                          disabled={!recipientEmail || emailMutation.isPending}
+                          className="w-full"
+                          data-testid="button-send-email"
+                        >
+                          {emailMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            "Confirm Send"
+                          )}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               ) : (
                 <Card className="bg-slate-800 border-slate-700 h-full flex items-center justify-center min-h-96">
