@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { transcribeAudio, analyzeTranscript } from "./groq-service";
 import { sendEmail } from "./email-service";
+import { downloadYouTubeAudio } from "./youtube-service";
 import { z } from "zod";
 import multer from "multer";
 import { unlinkSync } from "fs";
@@ -13,6 +14,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Analyze meeting from YouTube link
   app.post("/api/analyze-meeting", async (req, res) => {
+    let audioFile: string | null = null;
     try {
       const schema = z.object({
         videoUrl: z.string().url(),
@@ -20,49 +22,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { videoUrl } = schema.parse(req.body);
 
-      const title = new URL(videoUrl).hostname.split(".")[0] || "Meeting";
-
       const meeting = await storage.createMeeting({
         videoUrl,
-        title,
-        transcription: "Fetching captions...",
+        title: "Meeting",
+        transcription: "Downloading and transcribing...",
       });
 
-      let transcript = "";
       try {
-        // Fetch captions using YouTube API
-        const { getYouTubeTranscript } = await import("./youtube-service");
-        transcript = await getYouTubeTranscript(videoUrl);
-      } catch (captionError) {
+        // Download YouTube audio
+        const { filePath, title } = await downloadYouTubeAudio(videoUrl);
+        audioFile = filePath;
+
+        // Update meeting title
+        await storage.updateTranscript(meeting.id, "");
+        const updatedMeeting = await storage.getMeeting(meeting.id);
+        if (updatedMeeting) {
+          updatedMeeting.title = title;
+        }
+
+        // Transcribe audio with Groq
+        let transcript = "";
+        try {
+          if (!process.env.GROQ_API_KEY) {
+            throw new Error("GROQ_API_KEY not configured");
+          }
+          transcript = await transcribeAudio(audioFile);
+        } catch (transcribeError) {
+          throw new Error(`Transcription failed: ${transcribeError instanceof Error ? transcribeError.message : "Unknown error"}`);
+        }
+
+        // Analyze transcript
+        const analysisResult = await analyzeTranscript(transcript, title);
+        await storage.updateTranscript(meeting.id, transcript);
+
+        const analysis = await storage.createMeetingAnalysis({
+          meetingId: meeting.id,
+          executiveSummary: analysisResult.executive_summary,
+          keyPoints: analysisResult.key_points_discussed,
+          actionItems: analysisResult.action_items,
+          sentiment: analysisResult.sentiment,
+          efficiencyScore: analysisResult.efficiency_score,
+        });
+
+        res.json(analysis);
+      } catch (downloadError) {
         const errorMessage =
-          captionError instanceof Error ? captionError.message : "Failed to fetch captions";
+          downloadError instanceof Error ? downloadError.message : "Failed to process YouTube video";
         return res.status(400).json({
-          error: "Caption Fetch Failed",
+          error: "Download/Transcription Failed",
           message: errorMessage,
           suggestion: "Try uploading an audio file instead.",
         });
       }
-
-      // Analyze transcript
-      const analysisResult = await analyzeTranscript(transcript, title);
-      await storage.updateTranscript(meeting.id, transcript);
-
-      const analysis = await storage.createMeetingAnalysis({
-        meetingId: meeting.id,
-        executiveSummary: analysisResult.executive_summary,
-        keyPoints: analysisResult.key_points_discussed,
-        actionItems: analysisResult.action_items,
-        sentiment: analysisResult.sentiment,
-        efficiencyScore: analysisResult.efficiency_score,
-      });
-
-      res.json(analysis);
     } catch (error) {
       console.error("Error analyzing meeting:", error);
       res.status(500).json({
         error: "Failed to analyze meeting",
         message: error instanceof Error ? error.message : "Unknown error",
       });
+    } finally {
+      if (audioFile) {
+        try {
+          unlinkSync(audioFile);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
     }
   });
 
